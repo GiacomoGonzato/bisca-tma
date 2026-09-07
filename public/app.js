@@ -55,7 +55,7 @@ function initials(name) {
   return (name || '?').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 }
 
-function hearts(n) { return '❤️'.repeat(Math.max(0, n)) || '💀'; }
+function hearts(n) { return '❤️'.repeat(Math.max(0, n || 0)) || '💀'; }
 
 /* client id fallback for browser testing (persist across reloads) */
 function clientId() {
