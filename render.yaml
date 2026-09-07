@@ -1,0 +1,23 @@
+# Render Blueprint — one-click deploy of the BISCA Telegram Mini App.
+# In Render: New + → "Blueprint" → point at this repo. Then set BOT_TOKEN &
+# BOT_USERNAME as secrets, and update BASE_URL to your live service URL.
+services:
+  - type: web
+    name: bisca-tma
+    runtime: node
+    plan: free
+    region: frankfurt          # pick the region closest to your players
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: BOT_TOKEN
+        sync: false            # set as a secret in the dashboard
+      - key: BOT_USERNAME
+        sync: false            # e.g. MyBiscaBot (no @)
+      - key: BASE_URL
+        sync: false            # e.g. https://bisca-tma.onrender.com

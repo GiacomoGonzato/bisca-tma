@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f1a" />
+  <title>BISCA</title>
+  <!-- Official Telegram Mini App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ============================ HOME ============================ -->
+    <section id="screen-home" class="screen active">
+      <div class="brand">
+        <div class="brand-logo">🃏</div>
+        <h1 class="brand-title">BISCA</h1>
+        <p class="brand-sub">Bid smart. Win exactly. Survive.</p>
+      </div>
+
+      <div class="glass card-panel">
+        <button id="btn-create" class="btn btn-primary btn-lg">➕ Create Room</button>
+        <div class="divider"><span>or</span></div>
+        <div class="join-row">
+          <input id="input-room" class="input" maxlength="5" placeholder="ROOM CODE" autocomplete="off" />
+          <button id="btn-join" class="btn btn-secondary">Join</button>
+        </div>
+      </div>
+
+      <button id="btn-rules" class="link-btn">📖 How to play</button>
+    </section>
+
+    <!-- ============================ CREATE ============================ -->
+    <section id="screen-create" class="screen">
+      <div class="glass card-panel">
+        <h2 class="panel-title">New Game</h2>
+        <p class="muted">How many players?</p>
+        <div id="player-count-grid" class="count-grid"></div>
+        <button id="btn-create-confirm" class="btn btn-primary btn-lg">Create Room</button>
+        <button class="link-btn" data-back>← Back</button>
+      </div>
+    </section>
+
+    <!-- ============================ LOBBY ============================ -->
+    <section id="screen-lobby" class="screen">
+      <div class="glass card-panel">
+        <div class="lobby-head">
+          <div>
+            <p class="muted small">ROOM CODE</p>
+            <div class="room-code" id="lobby-code">-----</div>
+          </div>
+          <button id="btn-copy" class="btn btn-ghost">📋 Copy</button>
+        </div>
+
+        <button id="btn-invite" class="btn btn-secondary btn-block">👥 Invite Friends</button>
+
+        <div class="players-head">
+          <span>Players</span>
+          <span id="lobby-count" class="pill">0/0</span>
+        </div>
+        <ul id="lobby-players" class="player-list"></ul>
+
+        <button id="btn-start" class="btn btn-primary btn-lg btn-block" disabled>Start Game</button>
+        <p id="lobby-hint" class="muted small center"></p>
+        <button class="link-btn" data-back>← Leave</button>
+      </div>
+    </section>
+
+    <!-- ============================ GAME ============================ -->
+    <section id="screen-game" class="screen game-screen">
+      <!-- HUD -->
+      <header class="hud glass">
+        <div class="hud-item">
+          <span class="hud-label">Round</span>
+          <span id="hud-round" class="hud-value">1</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Cards</span>
+          <span id="hud-cards" class="hud-value">5</span>
+        </div>
+        <div class="hud-item hud-turn">
+          <span class="hud-label">Turn</span>
+          <span id="hud-turn" class="hud-value">—</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">Timer</span>
+          <span id="hud-timer" class="hud-value">30</span>
+        </div>
+      </header>
+
+      <!-- Opponents around the table -->
+      <div id="opponents" class="opponents"></div>
+
+      <!-- Table center: current trick -->
+      <div class="table-center">
+        <div id="blind-banner" class="blind-banner hidden">🙈 BLIND ROUND — you can't see your own card</div>
+        <div id="trick-area" class="trick-area"></div>
+        <div id="table-msg" class="table-msg"></div>
+      </div>
+
+      <!-- My status + hand -->
+      <div class="my-zone">
+        <div class="my-status glass">
+          <span id="my-name" class="my-name">You</span>
+          <span id="my-lives" class="lives">❤️❤️❤️❤️❤️</span>
+          <span id="my-bid" class="pill">Bid: – | Won: 0</span>
+        </div>
+        <div id="hand" class="hand"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ============================ MODALS ============================ -->
+  <div id="modal-root"></div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
