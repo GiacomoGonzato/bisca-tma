@@ -256,7 +256,7 @@ function renderOpponents(s, me) {
     el.className = 'opp' + (p.id === s.currentTurnId ? ' turn' : '') + (p.eliminated ? ' dead' : '');
     let cardsHtml = '';
     for (let i = 0; i < p.handCount; i++) {
-      const c = p.hand[i];
+      const c = p.hand?.[i];
       if (c) cardsHtml += miniCard(c);            // blind round: visible
       else cardsHtml += '<div class="mini-card"></div>';
     }
