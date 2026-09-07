@@ -337,14 +337,18 @@ function attemptPlay(card) {
   socket.emit('playCard', { cardId: card.id, aceChoice: null }, afterPlay);
 }
 function attemptPlayBlind() {
-  // We don't know our card id in a blind round; server plays our (only) card.
-  const me = state.last.players.find((p) => p.isSelf);
-  // handCount is 1 in blind rounds; send a sentinel — server matches the single card.
   socket.emit('playCard', { cardId: '__blind__', aceChoice: null }, (res) => {
-    if (res.error === 'CARD_NOT_IN_HAND') {
-      // Server needs the real id; ask for a sync then retry with the actual card.
-      socket.emit('sync', {}, () => {});
+    // 1. Check if server asks to choose WIN or LOSE for Ace of Hearts
+    if (res && res.error === 'ACE_CHOICE_REQUIRED') {
+      haptic('warning');
+      return openBlindAceModal(); // Opens the choice modal
     }
+    // 2. Handle sync if needed
+    if (res && res.error === 'CARD_NOT_IN_HAND') {
+      socket.emit('sync', {}, () => {});
+      return toast('Syncing card… please tap again');
+    }
+
     afterPlay(res);
   });
 }
@@ -481,6 +485,27 @@ function openAceModal(card) {
 }
 function sendAce(card, choice) {
   socket.emit('playCard', { cardId: card.id, aceChoice: choice }, (res) => {
+    closeModal();
+    afterPlay(res);
+  });
+}
+
+/* --- Blind Ace Modal --- */
+function openBlindAceModal() {
+  const el = modal(`
+    <h2>🃏 Ace of Hearts ♥!</h2>
+    <p class="sub">Surprise! Your blind card is the Ace of Hearts. Choose its power for this trick:</p>
+    <div class="ace-choices">
+      <button class="ace-btn ace-win">👑 WINS<br><small>beats everything</small></button>
+      <button class="ace-btn ace-lose">🪫 LOSES<br><small>loses to all</small></button>
+    </div>
+  `);
+  el.querySelector('.ace-win').onclick = () => sendBlindAce('win');
+  el.querySelector('.ace-lose').onclick = () => sendBlindAce('lose');
+}
+
+function sendBlindAce(choice) {
+  socket.emit('playCard', { cardId: '__blind__', aceChoice: choice }, (res) => {
     closeModal();
     afterPlay(res);
   });
