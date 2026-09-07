@@ -512,7 +512,8 @@ function showRules() {
       </li>
 
       <li><b>Special 1-Card Round ("Blind"):</b>
-        <br>Look at other players cards! Everyone bids 0 or 1 (the last bidder restriction still applies), cards are played, and lives are lost.
+        <br>Look at other players cards!
+        <br>Everyone bids 0 or 1 (the last bidder restriction still applies), cards are played, and lives are lost.
       </li>
     </ul>
     <button class="btn btn-primary btn-block" onclick="document.getElementById('modal-root').innerHTML=''">Got it! 👍</button>
