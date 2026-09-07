@@ -387,28 +387,72 @@ function handlePhase(s, me) {
 }
 
 function openBidModal(s) {
+  const me = s.players.find((p) => p.isSelf) || {};
   const max = s.cardsThisRound;
   const forbidden = s.forbiddenBid;
+
+  let cardsHtml = '';
+
+  if (s.blind) {
+    // --- 1-CARD BLIND ROUND ---
+    // You cannot see your own card, so show your opponents' cards instead!
+    const oppCards = s.players
+      .filter((p) => !p.isSelf && !p.eliminated)
+      .map((p) => {
+        const c = p.hand && p.hand[0];
+        const cardView = c ? bigCard(c) : '<div class="card back small">?</div>';
+        return `
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <span style="font-size:12px; font-weight:600;">${escapeHtml(p.name)}</span>
+            ${cardView}
+          </div>`;
+      })
+      .join('');
+
+    cardsHtml = `
+      <p class="sub" style="margin: 6px 0 10px; color: #f59e0b;">
+        🙈 <b>Blind Round:</b> You can't see your card. Here are your opponents':
+      </p>
+      <div class="modal-cards" style="display:flex; justify-content:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+        ${oppCards}
+      </div>`;
+  } else if (me.hand && me.hand.length) {
+    // --- NORMAL ROUNDS (2 to 5 cards) ---
+    // Show your own cards
+    const cards = me.hand.filter(Boolean).map((c) => bigCard(c)).join('');
+    cardsHtml = `
+      <div class="modal-cards" style="display:flex; justify-content:center; gap:8px; margin:14px 0; flex-wrap:wrap;">
+        ${cards}
+      </div>`;
+  }
+
   let cells = '';
   for (let n = 0; n <= max; n++) {
     const bad = forbidden === n;
     cells += `<div class="bid-cell ${bad ? 'forbidden' : ''}" data-bid="${n}">${n}</div>`;
   }
-  const blind = s.blind ? '<p class="sub">🙈 Blind round — bid 0 or 1 without seeing your card.</p>' : '';
+
   const el = modal(`
     <h2>Your Bid</h2>
     <p class="sub">How many tricks will you win? (0–${max})</p>
-    ${blind}
+    ${cardsHtml}
     <div class="bid-grid">${cells}</div>
     ${forbidden != null ? `<p class="forbidden-note">You're last: you cannot bid ${forbidden}.</p>` : ''}
   `);
+
   el.querySelectorAll('.bid-cell').forEach((cell) => {
     if (cell.classList.contains('forbidden')) return;
     cell.onclick = () => {
       const value = parseInt(cell.dataset.bid, 10);
       socket.emit('bid', { value }, (res) => {
-        if (res.error) { toast(res.error === 'ILLEGAL_BID' ? 'That bid is not allowed' : res.error); haptic('error'); }
-        else { closeModal(); currentModalKey = null; haptic('success'); }
+        if (res.error) { 
+          toast(res.error === 'ILLEGAL_BID' ? 'That bid is not allowed' : res.error); 
+          haptic('error'); 
+        } else { 
+          closeModal(); 
+          currentModalKey = null; 
+          haptic('success'); 
+        }
       });
     };
   });
