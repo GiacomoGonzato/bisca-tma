@@ -22,6 +22,7 @@ const state = {
   botUsername: '',
   selectedCount: 4,
   timerHandle: null,
+  currentDeadline: null,
 };
 
 /* ----------------------------------------------------------- helpers ------ */
@@ -432,13 +433,21 @@ function openBidModal(s) {
     cells += `<div class="bid-cell ${bad ? 'forbidden' : ''}" data-bid="${n}">${n}</div>`;
   }
 
-  const el = modal(`
-    <h2>Your Bid</h2>
+const el = modal(`
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+      <h2 style="margin:0;">Your Bid</h2>
+      <div id="bid-modal-timer" style="font-size:14px; font-weight:700; background:rgba(255,255,255,0.12); padding:4px 10px; border-radius:12px; color:#f3f4f6; display:inline-flex; align-items:center; gap:4px;">
+        ⏱️ <span class="time-sec">—</span>
+      </div>
+    </div>
     <p class="sub">How many tricks will you win? (0–${max})</p>
     ${cardsHtml}
     <div class="bid-grid">${cells}</div>
     ${forbidden != null ? `<p class="forbidden-note">You're last: you cannot bid ${forbidden}.</p>` : ''}
   `);
+
+  // Show the remaining time immediately on opening
+  updateTimerUI();
 
   el.querySelectorAll('.bid-cell').forEach((cell) => {
     if (cell.classList.contains('forbidden')) return;
@@ -565,18 +574,51 @@ function showRules() {
 }
 
 /* ------------------------------------------------------------- timer ------ */
+function updateTimerUI() {
+  const hud = $('#hud-timer');
+  const modalTimer = $('#bid-modal-timer');
+  const modalTimerSec = modalTimer ? modalTimer.querySelector('.time-sec') : null;
+
+  if (!state.currentDeadline) {
+    if (hud) { hud.textContent = '—'; hud.classList.remove('low'); }
+    if (modalTimerSec) { modalTimerSec.textContent = '—'; modalTimer.classList.remove('low'); }
+    return;
+  }
+
+  const left = Math.max(0, Math.ceil((state.currentDeadline - Date.now()) / 1000));
+  const isLow = left <= 10;
+
+  // 1. Update background HUD timer
+  if (hud) {
+    hud.textContent = left;
+    hud.classList.toggle('low', isLow);
+  }
+
+  // 2. Update popup Bid modal timer
+  if (modalTimer) {
+    if (modalTimerSec) modalTimerSec.textContent = `${left}s`;
+    modalTimer.classList.toggle('low', isLow);
+    if (isLow) {
+      modalTimer.style.color = '#ef4444';
+      modalTimer.style.background = 'rgba(239, 68, 68, 0.2)';
+    } else {
+      modalTimer.style.color = '#f3f4f6';
+      modalTimer.style.background = 'rgba(255, 255, 255, 0.12)';
+    }
+  }
+
+  if (left <= 0) {
+    clearInterval(state.timerHandle);
+  }
+}
+
 function startTimer(deadline) {
+  state.currentDeadline = deadline;
   clearInterval(state.timerHandle);
-  const el = $('#hud-timer');
-  if (!deadline) { el.textContent = '—'; el.classList.remove('low'); return; }
-  const tick = () => {
-    const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-    el.textContent = left;
-    el.classList.toggle('low', left <= 10);
-    if (left <= 0) clearInterval(state.timerHandle);
-  };
-  tick();
-  state.timerHandle = setInterval(tick, 1000);
+  updateTimerUI();
+  if (deadline) {
+    state.timerHandle = setInterval(updateTimerUI, 1000);
+  }
 }
 
 /* ------------------------------------------------------------- utils ------ */
