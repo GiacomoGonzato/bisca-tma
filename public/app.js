@@ -474,24 +474,46 @@ function openGameOverModal(s) {
 /* ------------------------------------------------------------- rules ------ */
 function showRules() {
   modal(`
-    <h2>How to Play BISCA</h2>
+    <h2>🃏 How to Play BISCA</h2>
     <ul class="rules-list">
-      <li><b>Objective:</b> Be the last player standing. Everyone starts with <b>5 Lives (❤️)</b>. Reaching 0 lives eliminates you from the game.</li>
-      <li><b>Deck:</b> Standard 40-card deck (cards 1 to 10 for each suit).</li>
-      <li><b>Card Hierarchy:</b> In every trick, suit is evaluated <b>first</b>, then number:
-        <br>• <b>Suits:</b> ♥ (Hearts) &gt; ♦ (Diamonds) &gt; ♣ (Clubs) &gt; ♠ (Spades). Any higher suit beats any lower suit (e.g., a 2♥ beats a 10♦).
-        <br>• <b>Numbers:</b> 10 (highest) &gt; 9 &gt; 8 &gt; 7 &gt; 6 &gt; 5 &gt; 4 &gt; 3 &gt; 2 &gt; 1 (lowest) — compared <i>only</i> when cards share the same suit.
+      <li>🎯 <b>Objective:</b> Be the last player standing! Everyone starts with <b>5 Lives (❤️)</b>. Reach 0 lives and you are eliminated 💀.</li>
+      
+      <li>📦 <b>Deck:</b> Standard 40-card deck (cards 1 to 10 for each of the 4 suits).</li>
+      
+      <li>👑 <b>Card Strength (Suit First, Then Rank):</b>
+        <br>• <b>Suits:</b> ♥️ (Hearts) &gt; ♦️ (Diamonds) &gt; ♣️ (Clubs) &gt; ♠️ (Spades). A higher suit <i>always</i> beats a lower suit (e.g., 2♥️ beats 10♦️).
+        <br>• <b>Numbers:</b> 🔟 (highest) &gt; 9 &gt; 8 &gt; 7 &gt; 6 &gt; 5 &gt; 4 &gt; 3 &gt; 2 &gt; 1️⃣ (lowest) — compared <i>only</i> when cards share the same suit.
       </li>
-      <li><b>Ace of Hearts (1♥):</b> When played, you choose on the spot whether it <b>WINS</b> (beats every card in the trick) or <b>LOSES</b> (loses to every card in the trick).</li>
-      <li><b>Round Structure:</b> Hands scale down each round: <b>5 → 4 → 3 → 2 → 1</b> cards, then loop back to 5 until only one survivor remains.</li>
-      <li><b>Phase 1 – Bidding:</b> Starting to the dealer's left, each player bids how many tricks they expect to win (from 0 to their hand size).
-        <br>• <i>Last Bidder Rule:</i> The last player cannot choose a bid that makes the total bids equal the number of cards in play (someone <i>must</i> fail).
+
+      <li>✨ <b>Special Card – Ace of Hearts (1♥️):</b>
+        <br>When played, you decide on the spot:
+        <br>• 🥇 <b>"WINS":</b> Beats every card in the trick.
+        <br>• 🪦 <b>"LOSES":</b> Loses to every card in the trick.
       </li>
-      <li><b>Phase 2 – Tricks:</b> The first player leads a card, and players play one card clockwise. The highest card wins the trick and leads the next one.</li>
-      <li><b>Phase 3 – Lives:</b> Hit your bid exactly to keep all your lives. If you miss, you lose <b>1 Life (❤️) per trick difference</b> (whether you took too many or too few).</li>
-      <li><b>Blind Round (1 Card):</b> Do <b>not</b> look at your card! Place it on your forehead so everyone can see it except you. Bid 0 or 1 (the last bidder restriction still applies), play the card, and resolve lives.</li>
+
+      <li>🔄 <b>Round Structure:</b>
+        <br>Hand sizes decrease each round: <b>5 ➔ 4 ➔ 3 ➔ 2 ➔ 1</b> cards, then loop back to <b>5</b> until only one survivor remains!
+      </li>
+
+      <li>🗣️ <b>Phase 1: Bidding:</b>
+        <br>Each player declares how many tricks they expect to win (from 0 up to their hand size).
+        <br>⚠️ <i>Last Player Rule:</i> The last bidder cannot pick a number that makes total bids equal the number of tricks in play. Someone <b>must</b> fail!
+      </li>
+
+      <li>⚔️ <b>Phase 2: Taking Tricks:</b>
+        <br>The first player leads a card, and everyone plays one card clockwise 🔁. The strongest card takes the trick and leads the next one.
+      </li>
+
+      <li>💔 <b>Phase 3: Life Calculation:</b>
+        <br>• <b>Exact Bid:</b> Safe! You lose 0 lives.
+        <br>• <b>Missed Bid:</b> Lose <b>1 Life (❤️) per trick difference</b> (whether you took too many or too few).
+      </li>
+
+      <li>🙈 <b>Special 1-Card Round ("Blind"):</b>
+        <br>Do <b>NOT</b> look at your card! Place it on your forehead so opponents see it, but you don't 👁️. Everyone bids 0 or 1 (the last bidder restriction still applies), cards are played, and lives are lost.
+      </li>
     </ul>
-    <button class="btn btn-primary btn-block" onclick="document.getElementById('modal-root').innerHTML=''">Got it</button>
+    <button class="btn btn-primary btn-block" onclick="document.getElementById('modal-root').innerHTML=''">Got it! 👍</button>
   `);
 }
 
