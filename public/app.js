@@ -481,7 +481,7 @@ function showRules() {
       <li><b>Deck:</b> Standard 40-card deck (cards 1 to 10 for each of the 4 suits).</li>
       
       <li><b>Card Strength (Suit First, Then Rank):</b>
-        <br>• <b>Suits:</b> ♥️ (Hearts) &gt; ♦️ (Diamonds) &gt; ♣️ (Clubs) &gt; ♠️ (Spades). A higher suit <i>always</i> beats a lower suit (e.g., 2♥️ beats 10♦️).
+        <br>• <b>Suits:</b> ♥️ &gt; ♦️ &gt; ♣️ &gt; ♠️. A higher suit <i>always</i> beats a lower suit (e.g., 2♥️ beats 10♦️).
         <br>• <b>Numbers:</b> A higher number beats a lower number (e.g., 8 beats 3) — compared <i>only</i> when cards share the same suit.
       </li>
 
@@ -492,7 +492,9 @@ function showRules() {
       </li>
 
       <li><b>Round Structure:</b>
-        <br>Hand sizes decrease each round: <b>5 ➔ 4 ➔ 3 ➔ 2 ➔ 1</b> cards, then loop back to <b>5</b> until only one survivor remains!
+        <br>Hand sizes decrease each round:
+        <br><b>5 ➔ 4 ➔ 3 ➔ 2 ➔ 1</b> cards.
+        <br>Then loop back to <b>5</b> until only one survivor remains!
       </li>
 
       <li><b>Phase 1: Bidding:</b>
@@ -510,7 +512,7 @@ function showRules() {
       </li>
 
       <li><b>Special 1-Card Round ("Blind"):</b>
-        <br>Do <b>NOT</b> look at your card! Place it on your forehead so opponents see it, but you don't. Everyone bids 0 or 1 (the last bidder restriction still applies), cards are played, and lives are lost.
+        <br>Look at other players cards! Everyone bids 0 or 1 (the last bidder restriction still applies), cards are played, and lives are lost.
       </li>
     </ul>
     <button class="btn btn-primary btn-block" onclick="document.getElementById('modal-root').innerHTML=''">Got it! 👍</button>
