@@ -476,14 +476,20 @@ function showRules() {
   modal(`
     <h2>How to Play BISCA</h2>
     <ul class="rules-list">
-      <li><b>Goal:</b> be the last player alive. Everyone starts with 5 ❤️.</li>
-      <li><b>Suits rank:</b> ♥ &gt; ♦ &gt; ♣ &gt; ♠. Higher suit always beats lower.</li>
-      <li><b>Numbers:</b> 10 high → 1 low (same suit only).</li>
-      <li><b>Ace of Hearts:</b> when played, choose <b>WINS</b> (beats all) or <b>LOSES</b> (loses to all).</li>
-      <li><b>Bidding:</b> guess your tricks (0…cards). The <b>last</b> bidder can't make the bids total the cards.</li>
-      <li><b>Lives:</b> exact bid = safe. Otherwise lose 1 ❤️ per trick you're off.</li>
-      <li><b>Rounds:</b> 5→4→3→2→1 cards, then repeat.</li>
-      <li><b>Blind (1 card):</b> you never see your own card — but you see everyone else's!</li>
+      <li><b>Objective:</b> Be the last player standing. Everyone starts with <b>5 Lives (❤️)</b>. Reaching 0 lives eliminates you from the game.</li>
+      <li><b>Deck:</b> Standard 40-card deck (cards 1 to 10 for each suit).</li>
+      <li><b>Card Hierarchy:</b> In every trick, suit is evaluated <b>first</b>, then number:
+        <br>• <b>Suits:</b> ♥ (Hearts) &gt; ♦ (Diamonds) &gt; ♣ (Clubs) &gt; ♠ (Spades). Any higher suit beats any lower suit (e.g., a 2♥ beats a 10♦).
+        <br>• <b>Numbers:</b> 10 (highest) &gt; 9 &gt; 8 &gt; 7 &gt; 6 &gt; 5 &gt; 4 &gt; 3 &gt; 2 &gt; 1 (lowest) — compared <i>only</i> when cards share the same suit.
+      </li>
+      <li><b>Ace of Hearts (1♥):</b> When played, you choose on the spot whether it <b>WINS</b> (beats every card in the trick) or <b>LOSES</b> (loses to every card in the trick).</li>
+      <li><b>Round Structure:</b> Hands scale down each round: <b>5 → 4 → 3 → 2 → 1</b> cards, then loop back to 5 until only one survivor remains.</li>
+      <li><b>Phase 1 – Bidding:</b> Starting to the dealer's left, each player bids how many tricks they expect to win (from 0 to their hand size).
+        <br>• <i>Last Bidder Rule:</i> The last player cannot choose a bid that makes the total bids equal the number of cards in play (someone <i>must</i> fail).
+      </li>
+      <li><b>Phase 2 – Tricks:</b> The first player leads a card, and players play one card clockwise. The highest card wins the trick and leads the next one.</li>
+      <li><b>Phase 3 – Lives:</b> Hit your bid exactly to keep all your lives. If you miss, you lose <b>1 Life (❤️) per trick difference</b> (whether you took too many or too few).</li>
+      <li><b>Blind Round (1 Card):</b> Do <b>not</b> look at your card! Place it on your forehead so everyone can see it except you. Bid 0 or 1 (the last bidder restriction still applies), play the card, and resolve lives.</li>
     </ul>
     <button class="btn btn-primary btn-block" onclick="document.getElementById('modal-root').innerHTML=''">Got it</button>
   `);
