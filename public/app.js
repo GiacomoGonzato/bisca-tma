@@ -383,7 +383,7 @@ function handlePhase(s, me) {
     return;
   }
   // Otherwise ensure transient modals are cleared (except ace, handled inline).
-  if (['bid'].includes(currentModalKey?.split('-')[0])) { closeModal(); currentModalKey = null; }
+  if (['bid', 'sum'].includes(currentModalKey?.split('-')[0])) { closeModal(); currentModalKey = null; }
   if (s.phase === 'playing' && currentModalKey && currentModalKey.startsWith('bid')) { closeModal(); currentModalKey = null; }
 }
 
