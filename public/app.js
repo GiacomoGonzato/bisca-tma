@@ -51,6 +51,10 @@ const state = {
   selectedCount: 2,      // Default maximum player capacity when creating a room
   timerHandle: null,     // The internal clock reference that ticks down the turn timer every second
   currentDeadline: null, // The exact timestamp (in milliseconds) when the current turn expires
+  isTrickResolving: false,    // True during the 1.5s window after a trick ends
+  activeLastTrickKey: null,  // Tracks which trick has been shown so it doesn't loop
+  hideLastTrick: false,      // True when the 1.5s window expires to wipe the cards
+  trickTimer: null,          // Holds the setTimeout reference for clearing the trick
 };
 
 /* ----------------------------------------------------------- helpers ------ */
@@ -462,30 +466,82 @@ function miniCard(c) {
 }
 
 /**
+ * Generates a unique fingerprint for a completed trick based on round, cards, and winner.
+ */
+function getTrickKey(s) {
+  if (!s.lastTrick || !s.lastTrick.plays) return null;
+  const cardIds = s.lastTrick.plays
+    .map((p) => (p.card ? `${p.card.suit}_${p.card.value}` : 'x'))
+    .join('-');
+  return `r${s.roundNumber}_${cardIds}_w:${s.lastTrick.winnerName}`;
+}
+
+/**
  * Draws the middle of the table (the "trick" area) where played cards appear.
- * Shows who played what card and who won the last trick.
+ * Shows all cards for 1.5s upon trick completion, then clears them so the next trick can start.
  */
 function renderTrick(s) {
   const area = $('#trick-area');
+  const msg = $('#table-msg');
   area.innerHTML = '';
-  
-  // Display cards from the active trick, or keep showing the previous trick if we just finished one
-  const plays = s.currentTrick.length ? s.currentTrick : (s.lastTrick ? s.lastTrick.plays : []);
-  const isLast = !s.currentTrick.length && s.lastTrick;
-  
+
+  let plays = [];
+  let isLast = false;
+
+  // 1. If cards are actively being played in the current trick
+  if (s.currentTrick && s.currentTrick.length > 0) {
+    plays = s.currentTrick;
+    state.isTrickResolving = false;
+    state.hideLastTrick = false;
+    clearTimeout(state.trickTimer);
+  } 
+  // 2. If currentTrick is empty and lastTrick exists, the trick just concluded
+  else if (s.lastTrick && s.lastTrick.plays && s.lastTrick.plays.length > 0) {
+    const trickKey = getTrickKey(s);
+
+    // If this is a newly completed trick we haven't timed yet:
+    if (state.activeLastTrickKey !== trickKey) {
+      state.activeLastTrickKey = trickKey;
+      state.isTrickResolving = true;
+      state.hideLastTrick = false;
+
+      // Start the 1.5-second (1500 ms) timer
+      clearTimeout(state.trickTimer);
+      state.trickTimer = setTimeout(() => {
+        state.isTrickResolving = false;
+        state.hideLastTrick = true; // Mark cards as ready to disappear
+
+        // Re-render the game: cards vanish and the winner's hand unlocks
+        if (state.last) {
+          renderGame(state.last);
+        }
+      }, 1500);
+    }
+
+    // Show cards if we are still within the 1.5s window
+    if (!state.hideLastTrick) {
+      plays = s.lastTrick.plays;
+      isLast = true;
+    }
+  }
+
+  // Render the cards in the center of the table (or nothing if cleared)
   plays.forEach((pl) => {
     const div = document.createElement('div');
     div.className = 'trick-play';
     div.innerHTML = `${bigCard(pl.card, pl.aceChoice)}<span class="trick-name">${escapeHtml(pl.name)}</span>`;
     area.appendChild(div);
   });
-  
-  // Status message beneath the cards on the table
-  const msg = $('#table-msg');
+
+  // Display contextual status message
   if (isLast && s.lastTrick) {
-    msg.textContent = `${s.lastTrick.winnerName} won the trick`;
+    msg.textContent = `${s.lastTrick.winnerName} won the trick!`;
   } else if (!plays.length && s.phase === 'betting') {
     msg.textContent = 'Waiting for bids…';
+  } else if (!plays.length && s.phase === 'playing') {
+    // Message displayed during the clean table state before the leader plays
+    const leader = s.players.find((p) => p.id === s.currentTurnId);
+    msg.textContent = leader ? `Waiting for ${leader.isSelf ? 'you' : leader.name} to lead…` : '';
   } else {
     msg.textContent = '';
   }
@@ -512,7 +568,9 @@ function bigCard(c, aceChoice) {
 function renderHand(s, me) {
   const hand = $('#hand');
   hand.innerHTML = '';
-  const myTurn = s.currentTurnId === state.playerId && s.phase === 'playing';
+  const myTurn = s.currentTurnId === state.playerId && 
+                 s.phase === 'playing' && 
+                 !state.isTrickResolving; // Locks interaction while viewing trick results
 
   (me.hand || []).forEach((c) => {
     const el = document.createElement('div');
@@ -638,6 +696,10 @@ function handlePhase(s, me) {
   // PHASE: ROUND END
   // Show the score summary table explaining who lost lives
   if (s.phase === 'roundEnd' && s.roundSummary) {
+    // If the last trick is still in its 1.5s showcase, defer the summary modal
+    if (state.isTrickResolving) {
+      return;
+    }
     const key = 'sum-' + s.roundNumber;
     if (currentModalKey !== key) { 
       currentModalKey = key; 
