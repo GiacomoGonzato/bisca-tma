@@ -14,11 +14,11 @@
   --primary-2: #a855f7;
   --accent: #24d19a;
   --danger: #ff5c78;
-  --gold: #ffd166;
-  --heart: #ff5c78;
-  --diamond: #ff8f5c;
-  --club: #4cc9f0;
-  --spade: #c8d0e6;
+  --gold: #ffd166;  
+  --heart:   #e8546b;   /* warm rose red */
+  --diamond: #f0a13d;   /* golden amber */
+  --club:    #2fa87a;   /* emerald green */
+  --spade:   #3b4a6b;   /* deep slate blue */
   --radius: 18px;
   --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }
@@ -224,9 +224,11 @@ html, body {
 
 /* playing card */
 .card {
-  width: 62px; height: 88px; border-radius: 10px; position: relative;
-  background: linear-gradient(160deg, #ffffff, #eef1fb);
-  box-shadow: 0 6px 16px rgba(0,0,0,.4); color: #111;
+  width: 62px; height: 88px; border-radius: 12px; position: relative;
+  background: linear-gradient(160deg, #fdfdff 0%, #eef1fa 55%, #e3e8f5 100%);
+  border: 1px solid rgba(255,255,255,.9);
+  box-shadow: 0 6px 16px rgba(0,0,0,.45), inset 0 1px 2px rgba(255,255,255,.9);
+  color: #1a1f2e;
   display: flex; flex-direction: column; justify-content: space-between; padding: 6px;
   font-weight: 800;
 }
@@ -234,14 +236,16 @@ html, body {
 .card.small { width: 44px; height: 62px; padding: 4px; }
 .card .corner { font-size: 15px; line-height: 1; }
 .card .corner.br { align-self: flex-end; transform: rotate(180deg); }
-.card .pip { position: absolute; inset: 0; display: grid; place-items: center; font-size: 30px; }
+.card .pip { position: absolute; inset: 0; display: grid; place-items: center; font-size: 30px; opacity: .92; text-shadow: 0 1px 2px rgba(0,0,0,.08); }
 .card.small .pip { font-size: 20px; }
-.card.hearts, .card .hearts { color: var(--heart); }
+.card.hearts,   .card .hearts   { color: var(--heart); }
 .card.diamonds, .card .diamonds { color: var(--diamond); }
-.card.clubs, .card .clubs { color: #1a7f5a; }
-.card.spades, .card .spades { color: #222; }
-.suit-hearts { color: var(--heart); } .suit-diamonds { color: var(--diamond); }
-.suit-clubs { color: #1a7f5a; } .suit-spades { color: #222; }
+.card.clubs,    .card .clubs    { color: var(--club); }
+.card.spades,   .card .spades   { color: var(--spade); }
+.suit-hearts   { color: var(--heart); }
+.suit-diamonds { color: var(--diamond); }
+.suit-clubs    { color: var(--club); }
+.suit-spades   { color: var(--spade); }
 .card .ace-badge { position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-size: 9px; }
 
 /* my zone */
