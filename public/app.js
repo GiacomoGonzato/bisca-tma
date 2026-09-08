@@ -417,7 +417,25 @@ function renderGame(s) {
   // 5. Update my own personal status bar (name, dealer icon, remaining lives, bid vs won)
   $('#my-name').textContent = (me.name || 'You') + (s.dealerId === me.id ? ' 🎴' : '');
   $('#my-lives').textContent = hearts(me.lives);
-  $('#my-bid').textContent = `Bid: ${me.bid == null ? '–' : me.bid} | Won: ${me.tricksWon}`;
+  const bidEl   = $('#my-bid');
+  const bidVal  = me.bid;
+  const wonVal  = me.tricksWon || 0;
+
+  if (bidVal == null) {
+    // Not bid yet → neutral
+    bidEl.className = 'bid-badge pending';
+    bidEl.innerHTML = `🎯 <b>–</b><span class="bid-sep">·</span>🏆 <b>${wonVal}</b>`;
+  } else {
+    const met  = wonVal === bidVal;
+    const diff = bidVal - wonVal;
+    const hint = met ? '✓ on target'
+               : diff > 0 ? `+${diff} to go`
+               : `${Math.abs(diff)} over`;
+    bidEl.className = 'bid-badge ' + (met ? 'met' : 'missing');
+    bidEl.innerHTML =
+      `🎯 <b>${bidVal}</b><span class="bid-sep">·</span>🏆 <b>${wonVal}</b>` +
+      `<span class="bid-hint">${hint}</span>`;
+  }
 
   // 6. Draw my playable cards at the bottom of the screen
   renderHand(s, me);
