@@ -39,6 +39,22 @@ const SUIT_SYMBOL = {
   spades: '♠' 
 };
 
+// Suit hierarchy: ♥ > ♦ > ♣ > ♠ (same ranking as the engine)
+const SUIT_RANK = { hearts: 4, diamonds: 3, clubs: 2, spades: 1 };
+
+// Strength used ONLY to sort the hand (strongest → weakest).
+// Ace of Hearts is treated as the absolute strongest card.
+function handCardStrength(c) {
+  if (!c) return -Infinity;                                   // hidden/blind cards → end
+  if (c.suit === 'hearts' && c.value === 1) return Infinity;  // Ace of Hearts = strongest
+  return SUIT_RANK[c.suit] * 100 + c.value;                   // suit dominates, then value
+}
+
+// Descending comparator (strongest first)
+function compareCardsDesc(a, b) {
+  return handCardStrength(b) - handCardStrength(a);
+}
+
 // "state" is the memory of the app. It holds all current information about who is 
 // playing, what room they are in, whose turn it is, and what is currently happening.
 const state = {
@@ -604,7 +620,8 @@ function renderHand(s, me) {
                  s.phase === 'playing' && 
                  !state.isTrickResolving; // Locks interaction while viewing trick results
 
-  (me.hand || []).forEach((c) => {
+  const sortedHand = (me.hand || []).slice().sort(compareCardsDesc);
+  sortedHand.forEach((c) => {
     const el = document.createElement('div');
     if (!c) {
       // In a 1-card "Blind" round, your own card is hidden from you with a monkey emoji
