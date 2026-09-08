@@ -817,11 +817,16 @@ function openBidModal(s) {
   } else if (me.hand && me.hand.length) {
     // --- NORMAL ROUNDS (2 to 5 cards) ---
     // Show your own cards inside the popup for easy reference while choosing a bid
-    const cards = me.hand.filter(Boolean).map((c) => bigCard(c)).join('');
-    cardsHtml = `
-      <div class="modal-cards" style="display:flex; justify-content:center; gap:8px; margin:14px 0; flex-wrap:wrap;">
-        ${cards}
-      </div>`;
+    const cards = me.hand
+    .filter(Boolean)
+    .slice()                 // copy → don't mutate the real hand
+    .sort(compareCardsDesc)  // strongest → weakest (Ace♥ first)
+    .map((c) => bigCard(c))
+    .join('');
+      cardsHtml = `
+        <div class="modal-cards" style="display:flex; justify-content:center; gap:8px; margin:14px 0; flex-wrap:wrap;">
+          ${cards}
+        </div>`;
   }
 
   // Build the clickable number buttons (from 0 up to max possible tricks this round)
