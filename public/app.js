@@ -1,131 +1,254 @@
 /* ==========================================================================
-   BISCA — client (Socket.io + Telegram WebApp)
+   BISCA — Client-Side Application (Socket.io + Telegram WebApp)
+   
+   WHAT THIS SCRIPT DOES:
+   This file runs in the player's web browser (or inside the Telegram app).
+   It manages the visual user interface (screens, buttons, cards, popups),
+   handles user taps/clicks, and talks back-and-forth in real time with the 
+   game server over an internet connection (using WebSockets).
    ========================================================================== */
 'use strict';
 
 /* --------------------------------------------------------- Telegram init -- */
+// Check if the game is being opened inside the official Telegram messaging app.
+// If it is, 'tg' gives us access to Telegram's native mobile features.
 const tg = window.Telegram && window.Telegram.WebApp;
+
 if (tg) {
+  // Tell Telegram the web page has finished loading and is ready to display.
   tg.ready();
+  
+  // Expand the mini-app to take up the full height of the player's phone screen.
   tg.expand();
-  try { tg.setHeaderColor('#0b0f1a'); tg.setBackgroundColor('#070a12'); } catch (_) {}
+  
+  // Set the top status bar and background colors to match our dark game theme.
+  try { 
+    tg.setHeaderColor('#0b0f1a'); 
+    tg.setBackgroundColor('#070a12'); 
+  } catch (_) {
+    // If the user is on an older version of Telegram that doesn't support this, ignore the error.
+  }
 }
 
 /* ----------------------------------------------------------- constants ---- */
-const SUIT_SYMBOL = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
+// A dictionary (lookup table) translating suit names into their visual playing-card symbols.
+const SUIT_SYMBOL = { 
+  hearts: '♥', 
+  diamonds: '♦', 
+  clubs: '♣', 
+  spades: '♠' 
+};
+
+// "state" is the memory of the app. It holds all current information about who is 
+// playing, what room they are in, whose turn it is, and what is currently happening.
 const state = {
-  playerId: null,
-  name: 'Guest',
-  roomId: null,
-  isHost: false,
-  last: null,          // last public state
-  botUsername: '',
-  selectedCount: 4,
-  timerHandle: null,
-  currentDeadline: null,
+  playerId: null,        // Unique ID assigned to this player by the server
+  name: 'Guest',         // Player's display name
+  roomId: null,          // Code of the room/match currently joined (e.g. "ABCD")
+  isHost: false,         // True if this player created the room (can start the game)
+  last: null,            // Holds the most recent game snapshot sent from the server
+  botUsername: '',       // The Telegram username of the game bot (used to make shareable links)
+  selectedCount: 2,      // Default maximum player capacity when creating a room
+  timerHandle: null,     // The internal clock reference that ticks down the turn timer every second
+  currentDeadline: null, // The exact timestamp (in milliseconds) when the current turn expires
 };
 
 /* ----------------------------------------------------------- helpers ------ */
+// Helper shortcut to find a single HTML element on the page (like a button or text box).
 const $ = (sel) => document.querySelector(sel);
+
+// Helper shortcut to find multiple HTML elements on the page as a list.
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
+/**
+ * Changes the visible screen on the device.
+ * Hides all other screens and shows only the one with the given 'id' (e.g., home, lobby, game).
+ */
 function showScreen(id) {
-  $$('.screen').forEach((s) => s.classList.remove('active'));
-  $('#' + id).classList.add('active');
+  $$('.screen').forEach((s) => s.classList.remove('active')); // Hide all screens
+  $('#' + id).classList.add('active');                       // Show the requested screen
 }
 
+/**
+ * Displays a small temporary notification message (a "toast") at the bottom of the screen.
+ * Automatically disappears after a couple of seconds.
+ */
 function toast(msg, ms = 2200) {
   const el = $('#toast');
   el.textContent = msg;
-  el.classList.remove('hidden');
-  clearTimeout(el._t);
-  el._t = setTimeout(() => el.classList.add('hidden'), ms);
+  el.classList.remove('hidden'); // Make the toast visible
+  clearTimeout(el._t);           // Cancel any previous timer if a toast was already showing
+  el._t = setTimeout(() => el.classList.add('hidden'), ms); // Hide after 'ms' milliseconds
 }
 
+/**
+ * Triggers a phone vibration (haptic feedback) when played inside Telegram on mobile.
+ * Gives tactile feedback for button clicks, wins, warnings, or errors.
+ */
 function haptic(type = 'light') {
   if (tg && tg.HapticFeedback) {
     try {
-      if (type === 'success' || type === 'error' || type === 'warning') tg.HapticFeedback.notificationOccurred(type);
-      else tg.HapticFeedback.impactOccurred(type);
+      if (type === 'success' || type === 'error' || type === 'warning') {
+        tg.HapticFeedback.notificationOccurred(type);
+      } else {
+        tg.HapticFeedback.impactOccurred(type);
+      }
     } catch (_) {}
   }
 }
 
+/**
+ * Generates up to 2 uppercase initials from a player's name (e.g., "John Doe" becomes "JD").
+ * Used to display on player profile icons/avatars.
+ */
 function initials(name) {
-  return (name || '?').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+  return (name || '?')
+    .trim()
+    .split(/\s+/)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 }
 
-function hearts(n) { return '❤️'.repeat(Math.max(0, n || 0)) || '💀'; }
+/**
+ * Converts a player's remaining life points into heart emojis.
+ * For example: 3 becomes "❤️❤️❤️". If 0 lives remain, returns a skull "💀".
+ */
+function hearts(n) { 
+  return '❤️'.repeat(Math.max(0, n || 0)) || '💀'; 
+}
 
-/* client id fallback for browser testing (persist across reloads) */
+/**
+ * Generates or retrieves a unique persistent client ID for testing in a normal browser
+ * outside of Telegram. It saves this ID in the browser's local memory so it survives page reloads.
+ */
 function clientId() {
   let id = localStorage.getItem('bisca_cid');
-  if (!id) { id = 'web_' + Math.random().toString(36).slice(2, 10); localStorage.setItem('bisca_cid', id); }
+  if (!id) { 
+    id = 'web_' + Math.random().toString(36).slice(2, 10); 
+    localStorage.setItem('bisca_cid', id); 
+  }
   return id;
 }
 
 /* ------------------------------------------------------------ socket ------ */
+// Establish an active, live two-way internet connection (WebSocket) to the game server.
 const socket = io({ transports: ['websocket', 'polling'] });
 
+// When the device connects (or reconnects) to the server, send our login information.
 socket.on('connect', () => authenticate());
+
+// Whenever the server broadcasts an updated game state, re-draw the screen to reflect it.
 socket.on('state', (s) => renderGame(s));
+
+// If the internet connection drops, notify the player.
 socket.on('disconnect', () => toast('Reconnecting…'));
 
+/**
+ * Sends authentication details to the server so it knows who is connecting.
+ * If in Telegram, sends verified Telegram account data.
+ * If in a desktop browser, sends a saved client ID.
+ */
 function authenticate() {
   const payload = tg
     ? { initData: tg.initData, name: tgName() }
     : { clientId: clientId(), name: state.name };
+
+  // Send the "auth" message to the server
   socket.emit('auth', payload, (res) => {
     if (res && res.ok) {
       state.playerId = res.playerId;
       state.name = res.name;
       $('#my-name').textContent = res.name;
-      // Auto-join if launched from a deep link (?startapp=ROOM).
+
+      // If the player clicked a shared link to join a specific room, join it automatically.
       maybeAutoJoin();
     }
   });
 }
 
+/**
+ * Reads the user's real name from Telegram's secure data.
+ * Falls back to username or "Player" if no name is set.
+ */
 function tgName() {
   const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
   if (!u) return 'Guest';
   return [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Player';
 }
 
+/**
+ * Looks for an invite code attached to the link used to open the game 
+ * (for example: https://t.me/bot?startapp=ROOM123).
+ */
 function startParam() {
-  if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) return tg.initDataUnsafe.start_param;
+  if (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+    return tg.initDataUnsafe.start_param;
+  }
   const p = new URLSearchParams(location.search);
   return p.get('startapp') || p.get('tgWebAppStartParam') || null;
 }
 
+/**
+ * Automatically joins a game room if an invite code was found in the link.
+ */
 function maybeAutoJoin() {
   const room = startParam();
   if (room) doJoin(room);
 }
 
 /* --------------------------------------------------------- config fetch --- */
-fetch('/config').then((r) => r.json()).then((c) => { state.botUsername = c.botUsername || ''; }).catch(() => {});
+// Asks the server for general app configuration settings (like the Telegram Bot's username).
+fetch('/config')
+  .then((r) => r.json())
+  .then((c) => { state.botUsername = c.botUsername || ''; })
+  .catch(() => {});
 
 /* ========================================================== HOME =========== */
-$('#btn-create').onclick = () => { haptic(); buildCountGrid(); showScreen('screen-create'); };
+// HOME SCREEN: When the player taps "Create Game", prepare the player-count picker and show create screen.
+$('#btn-create').onclick = () => { 
+  haptic(); 
+  buildCountGrid(); 
+  showScreen('screen-create'); 
+};
+
+// HOME SCREEN: When the player taps "Join Game", read the text box and join the room.
 $('#btn-join').onclick = () => {
   const code = $('#input-room').value.trim().toUpperCase();
   if (code.length < 4) return toast('Enter a valid room code');
   doJoin(code);
 };
-$('#input-room').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase(); });
+
+// Automatically convert whatever the player types in the room code box into UPPERCASE letters.
+$('#input-room').addEventListener('input', (e) => { 
+  e.target.value = e.target.value.toUpperCase(); 
+});
+
+// HOME SCREEN: When the player taps "Rules", open the how-to-play popup.
 $('#btn-rules').onclick = showRules;
 
-$$('[data-back]').forEach((b) => (b.onclick = () => { haptic(); showScreen('screen-home'); }));
+// Any button marked with "data-back" will take the player back to the Home screen.
+$$('[data-back]').forEach((b) => (b.onclick = () => { 
+  haptic(); 
+  showScreen('screen-home'); 
+}));
 
 /* ========================================================= CREATE ========== */
+/**
+ * Builds the selectable grid of numbers (from 2 to 8) on the Create Game screen,
+ * allowing the host to choose the maximum number of players for the match.
+ */
 function buildCountGrid() {
   const grid = $('#player-count-grid');
-  grid.innerHTML = '';
+  grid.innerHTML = ''; // Clear out any existing buttons
+
   for (let n = 2; n <= 8; n++) {
     const cell = document.createElement('div');
     cell.className = 'count-cell' + (n === state.selectedCount ? ' selected' : '');
     cell.textContent = n;
+    
+    // When a number is clicked, highlight it and remember the chosen number
     cell.onclick = () => {
       state.selectedCount = n;
       haptic();
@@ -135,15 +258,21 @@ function buildCountGrid() {
     grid.appendChild(cell);
   }
 }
+
+// CREATE SCREEN: When host confirms room creation, tell the server to create it.
 $('#btn-create-confirm').onclick = () => {
   socket.emit('createRoom', { maxPlayers: state.selectedCount }, (res) => {
     if (res.error) return toast('Error: ' + res.error);
-    state.roomId = res.roomId; state.isHost = true;
+    state.roomId = res.roomId; 
+    state.isHost = true;
     haptic('success');
   });
 };
 
 /* ========================================================== JOIN =========== */
+/**
+ * Sends a request to the server to join an existing game room using its code.
+ */
 function doJoin(roomId) {
   socket.emit('joinRoom', { roomId }, (res) => {
     if (res.error) return toast(joinError(res.error));
@@ -151,6 +280,10 @@ function doJoin(roomId) {
     haptic('success');
   });
 }
+
+/**
+ * Translates technical error codes from the server into friendly sentences for the user.
+ */
 function joinError(code) {
   return ({
     ROOM_NOT_FOUND: 'Room not found',
@@ -160,32 +293,53 @@ function joinError(code) {
 }
 
 /* ========================================================= LOBBY =========== */
-$('#btn-start').onclick = () => socket.emit('startGame', {}, (res) => { if (res.error) toast(res.error); });
+// LOBBY SCREEN: When the host clicks "Start Game", send the start command to the server.
+$('#btn-start').onclick = () => socket.emit('startGame', {}, (res) => { 
+  if (res.error) toast(res.error); 
+});
+
+// LOBBY SCREEN: Copy the 4-letter room code to the device's clipboard.
 $('#btn-copy').onclick = () => {
   navigator.clipboard && navigator.clipboard.writeText(state.roomId);
   toast('Room code copied');
 };
+
+// LOBBY SCREEN: Open Telegram's friend-picker/share dialog so the player can invite others.
 $('#btn-invite').onclick = () => {
   const link = inviteLink();
   const text = `Join my BISCA game! Code: ${state.roomId}`;
+  
   if (tg && tg.openTelegramLink && state.botUsername) {
+    // Open Telegram's share sheet with pre-filled message and link
     const share = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
     tg.openTelegramLink(share);
   } else if (tg && tg.switchInlineQuery) {
+    // Alternate Telegram sharing method
     tg.switchInlineQuery(state.roomId, ['users', 'groups']);
   } else {
+    // If running in a regular web browser, just copy the link to clipboard
     navigator.clipboard && navigator.clipboard.writeText(link);
     toast('Invite link copied');
   }
 };
+
+/**
+ * Builds the URL link that other people can click to directly join this game room.
+ */
 function inviteLink() {
   if (state.botUsername) return `https://t.me/${state.botUsername}/app?startapp=${state.roomId}`;
   return `${location.origin}/?startapp=${state.roomId}`;
 }
 
+/**
+ * Redraws the Lobby screen UI whenever player lists or room info change.
+ * Displays all joined players, online/offline status, host badge, and the Start button.
+ */
 function renderLobby(s) {
   $('#lobby-code').textContent = s.id;
   $('#lobby-count').textContent = `${s.players.length}/${s.maxPlayers}`;
+  
+  // Render the list of players currently inside the room
   const list = $('#lobby-players');
   list.innerHTML = '';
   s.players.forEach((p) => {
@@ -197,69 +351,98 @@ function renderLobby(s) {
       <span class="dot ${p.connected ? '' : 'off'}"></span>`;
     list.appendChild(li);
   });
+
+  // Check if I am the host of this room
   const meHost = s.hostId === state.playerId;
   state.isHost = meHost;
+  
+  // Game requires at least 2 players to start
   const canStart = meHost && s.players.length >= 2;
   const btn = $('#btn-start');
-  btn.style.display = meHost ? '' : 'none';
+  btn.style.display = meHost ? '' : 'none'; // Only the host sees the Start button
   btn.disabled = !canStart;
+
+  // Informative helper text at the bottom of the lobby
   $('#lobby-hint').textContent = meHost
     ? (canStart ? `Ready! ${s.players.length} players joined.` : 'Waiting for at least 2 players…')
     : 'Waiting for the host to start…';
 }
 
 /* =========================================================== GAME =========== */
+/**
+ * THE MAIN GAME RENDER FUNCTION:
+ * This runs every time the server sends new game information (state 's').
+ * It updates everything the player sees: turn indicator, cards in hand,
+ * cards on the table, opponents' lives, and prompts for bids/actions.
+ */
 function renderGame(s) {
   state.last = s;
   state.roomId = s.id;
 
-  if (s.phase === 'lobby') { showScreen('screen-lobby'); renderLobby(s); return; }
+  // If the game has not started yet and is still in the lobby, show the lobby screen instead
+  if (s.phase === 'lobby') { 
+    showScreen('screen-lobby'); 
+    renderLobby(s); 
+    return; 
+  }
 
+  // Switch display to the active gameplay screen
   showScreen('screen-game');
   const me = s.players.find((p) => p.isSelf) || {};
 
-  // HUD
+  // 1. Heads-Up Display (HUD): Update round number, cards dealt this round, and whose turn it is
   $('#hud-round').textContent = s.roundNumber;
   $('#hud-cards').textContent = s.cardsThisRound;
   const turnName = s.currentTurnId
     ? (s.players.find((p) => p.id === s.currentTurnId) || {}).name || '—'
     : '—';
   $('#hud-turn').textContent = s.currentTurnId === state.playerId ? 'YOU' : turnName;
+  
+  // Start/update the countdown timer for the current player's turn
   startTimer(s.turnDeadline);
 
-  // blind banner
+  // 2. Blind Banner: Show special banner during 1-card "Blind" rounds (unless round/game ended)
   $('#blind-banner').classList.toggle('hidden', !s.blind || s.phase === 'roundEnd' || s.phase === 'gameOver');
 
-  // opponents
+  // 3. Draw opponents' status around the table
   renderOpponents(s, me);
 
-  // trick area
+  // 4. Draw the cards played in the center of the table (the trick)
   renderTrick(s);
 
-  // my status
+  // 5. Update my own personal status bar (name, dealer icon, remaining lives, bid vs won)
   $('#my-name').textContent = (me.name || 'You') + (s.dealerId === me.id ? ' 🎴' : '');
   $('#my-lives').textContent = hearts(me.lives);
   $('#my-bid').textContent = `Bid: ${me.bid == null ? '–' : me.bid} | Won: ${me.tricksWon}`;
 
-  // hand
+  // 6. Draw my playable cards at the bottom of the screen
   renderHand(s, me);
 
-  // phase-specific modals
+  // 7. Check if a popup needs to be shown (bidding choice, round summary, or game over)
   handlePhase(s, me);
 }
 
+/**
+ * Draws all opponent players at the top of the screen:
+ * shows their name, avatar, remaining lives (hearts), bid vs won tricks, and cards.
+ */
 function renderOpponents(s, me) {
   const wrap = $('#opponents');
   wrap.innerHTML = '';
+  
+  // Filter out myself so we only render other players
   s.players.filter((p) => !p.isSelf).forEach((p) => {
     const el = document.createElement('div');
     el.className = 'opp' + (p.id === s.currentTurnId ? ' turn' : '') + (p.eliminated ? ' dead' : '');
+    
+    // Draw opponents' cards
     let cardsHtml = '';
     for (let i = 0; i < p.handCount; i++) {
       const c = p.hand?.[i];
-      if (c) cardsHtml += miniCard(c);            // blind round: visible
-      else cardsHtml += '<div class="mini-card"></div>';
+      if (c) cardsHtml += miniCard(c);            // In blind round: opponents' cards are visible to you!
+      else cardsHtml += '<div class="mini-card"></div>'; // In normal round: opponent cards are face down
     }
+    
     el.innerHTML = `
       ${p.connected ? '' : '<span class="opp-offline">offline</span>'}
       <div class="avatar">${initials(p.name)}</div>
@@ -271,27 +454,47 @@ function renderOpponents(s, me) {
   });
 }
 
+/**
+ * Helper that generates the HTML for a tiny card face (used for opponents' hands).
+ */
 function miniCard(c) {
   return `<div class="mini-card face suit-${c.suit}">${c.value}${SUIT_SYMBOL[c.suit]}</div>`;
 }
 
+/**
+ * Draws the middle of the table (the "trick" area) where played cards appear.
+ * Shows who played what card and who won the last trick.
+ */
 function renderTrick(s) {
   const area = $('#trick-area');
   area.innerHTML = '';
+  
+  // Display cards from the active trick, or keep showing the previous trick if we just finished one
   const plays = s.currentTrick.length ? s.currentTrick : (s.lastTrick ? s.lastTrick.plays : []);
   const isLast = !s.currentTrick.length && s.lastTrick;
+  
   plays.forEach((pl) => {
     const div = document.createElement('div');
     div.className = 'trick-play';
     div.innerHTML = `${bigCard(pl.card, pl.aceChoice)}<span class="trick-name">${escapeHtml(pl.name)}</span>`;
     area.appendChild(div);
   });
+  
+  // Status message beneath the cards on the table
   const msg = $('#table-msg');
-  if (isLast && s.lastTrick) msg.textContent = `${s.lastTrick.winnerName} won the trick`;
-  else if (!plays.length && s.phase === 'betting') msg.textContent = 'Waiting for bids…';
-  else msg.textContent = '';
+  if (isLast && s.lastTrick) {
+    msg.textContent = `${s.lastTrick.winnerName} won the trick`;
+  } else if (!plays.length && s.phase === 'betting') {
+    msg.textContent = 'Waiting for bids…';
+  } else {
+    msg.textContent = '';
+  }
 }
 
+/**
+ * Helper that generates the HTML for a full-sized card (corners, suit icon, number).
+ * If the card is an Ace of Hearts with a declared power, it also displays a "WINS" or "LOSES" badge.
+ */
 function bigCard(c, aceChoice) {
   const sym = SUIT_SYMBOL[c.suit];
   const ace = aceChoice ? `<span class="ace-badge">${aceChoice === 'win' ? 'WINS' : 'LOSES'}</span>` : '';
@@ -302,29 +505,38 @@ function bigCard(c, aceChoice) {
     </div>`;
 }
 
+/**
+ * Draws the player's own hand of cards at the bottom of the screen.
+ * Highlights playable cards when it is the player's turn to play.
+ */
 function renderHand(s, me) {
   const hand = $('#hand');
   hand.innerHTML = '';
   const myTurn = s.currentTurnId === state.playerId && s.phase === 'playing';
-  (me.hand || []).forEach((c, i) => {
+
+  (me.hand || []).forEach((c) => {
     const el = document.createElement('div');
     if (!c) {
-      // blind round: my own card is hidden
+      // In a 1-card "Blind" round, your own card is hidden from you with a monkey emoji
       el.className = 'card back small';
       el.innerHTML = '🙈';
     } else {
+      // Normal card: show its value and suit
       el.className = `card ${c.suit}` + (myTurn ? ' playable' : ' disabled');
       const sym = SUIT_SYMBOL[c.suit];
       el.innerHTML = `<div class="corner">${c.value}<br>${sym}</div>
         <div class="pip">${sym}</div>
         <div class="corner br">${c.value}<br>${sym}</div>`;
+      
+      // Clicking a card when it's your turn attempts to play it
       if (myTurn) el.onclick = () => attemptPlay(c);
     }
     hand.appendChild(el);
   });
-  // In blind round we still need clickable placeholders to play
+
+  // During a blind round, the player still needs to tap their face-down card to play it
   if (s.blind && myTurn && me.handCount > 0) {
-    hand.querySelectorAll('.card.back').forEach((el, idx) => {
+    hand.querySelectorAll('.card.back').forEach((el) => {
       el.classList.remove('disabled');
       el.onclick = () => attemptPlayBlind();
     });
@@ -332,18 +544,30 @@ function renderHand(s, me) {
 }
 
 /* --------------------------------------------------------- interactions --- */
+/**
+ * Called when a player clicks one of their normal cards to play it.
+ * If the card is the special Ace of Hearts, prompts them to choose WINS or LOSES.
+ * Otherwise, immediately tells the server to play the card.
+ */
 function attemptPlay(card) {
-  if (card.suit === 'hearts' && card.value === 1) return openAceModal(card);
+  if (card.suit === 'hearts' && card.value === 1) {
+    return openAceModal(card); // Ace of Hearts requires choosing power
+  }
   socket.emit('playCard', { cardId: card.id, aceChoice: null }, afterPlay);
 }
+
+/**
+ * Called when playing a card in the 1-card Blind round (where the player can't see their card).
+ */
 function attemptPlayBlind() {
   socket.emit('playCard', { cardId: '__blind__', aceChoice: null }, (res) => {
-    // 1. Check if server asks to choose WIN or LOSE for Ace of Hearts
+    // 1. If the server tells us our blind card happens to be the Ace of Hearts,
+    // open the special modal asking whether we want it to WIN or LOSE.
     if (res && res.error === 'ACE_CHOICE_REQUIRED') {
       haptic('warning');
-      return openBlindAceModal(); // Opens the choice modal
+      return openBlindAceModal();
     }
-    // 2. Handle sync if needed
+    // 2. If the card was somehow out of sync with the server, refresh state
     if (res && res.error === 'CARD_NOT_IN_HAND') {
       socket.emit('sync', {}, () => {});
       return toast('Syncing card… please tap again');
@@ -352,45 +576,103 @@ function attemptPlayBlind() {
     afterPlay(res);
   });
 }
+
+/**
+ * Callback handling the server's response after a card play request.
+ * Vibrates the phone with success or shows an error message.
+ */
 function afterPlay(res) {
-  if (res && res.error) { toast(playError(res.error)); haptic('error'); }
-  else haptic('light');
+  if (res && res.error) { 
+    toast(playError(res.error)); 
+    haptic('error'); 
+  } else { 
+    haptic('light'); 
+  }
 }
+
+/**
+ * Translates technical card-play errors into clear messages.
+ */
 function playError(code) {
-  return ({ NOT_YOUR_TURN: 'Not your turn', ACE_CHOICE_REQUIRED: 'Choose WIN or LOSE',
-    CARD_NOT_IN_HAND: 'Card unavailable' })[code] || code;
+  return ({ 
+    NOT_YOUR_TURN: 'Not your turn', 
+    ACE_CHOICE_REQUIRED: 'Choose WIN or LOSE',
+    CARD_NOT_IN_HAND: 'Card unavailable' 
+  })[code] || code;
 }
 
 /* =========================================================== MODALS ======== */
+/**
+ * Creates and displays a popup window (modal) over the screen with the given HTML content.
+ */
 function modal(html) {
   const root = $('#modal-root');
   root.innerHTML = `<div class="modal-overlay"><div class="modal">${html}</div></div>`;
   return root.querySelector('.modal');
 }
-function closeModal() { $('#modal-root').innerHTML = ''; }
 
-let currentModalKey = null;
-function handlePhase(s, me) {
-  // Bidding: show my bid modal only when it's my turn and I haven't bid.
-  if (s.phase === 'betting' && s.currentTurnId === state.playerId && me.bid == null) {
-    const key = 'bid-' + s.roundNumber + '-' + me.tricksWon;
-    if (currentModalKey !== key) { currentModalKey = key; openBidModal(s); }
-    return;
-  }
-  if (s.phase === 'roundEnd' && s.roundSummary) {
-    const key = 'sum-' + s.roundNumber;
-    if (currentModalKey !== key) { currentModalKey = key; openSummaryModal(s); }
-    return;
-  }
-  if (s.phase === 'gameOver') {
-    if (currentModalKey !== 'over') { currentModalKey = 'over'; openGameOverModal(s); }
-    return;
-  }
-  // Otherwise ensure transient modals are cleared (except ace, handled inline).
-  if (['bid', 'sum'].includes(currentModalKey?.split('-')[0])) { closeModal(); currentModalKey = null; }
-  if (s.phase === 'playing' && currentModalKey && currentModalKey.startsWith('bid')) { closeModal(); currentModalKey = null; }
+/**
+ * Closes and removes any currently open popup window.
+ */
+function closeModal() { 
+  $('#modal-root').innerHTML = ''; 
 }
 
+let currentModalKey = null; // Remembers which modal is currently open so it doesn't re-open repeatedly
+
+/**
+ * Decides whether a popup window needs to be shown based on what phase the game is currently in.
+ */
+function handlePhase(s, me) {
+  // PHASE: BETTING/BIDDING
+  // If it is my turn to bid and I have not bid yet, open the bidding screen
+  if (s.phase === 'betting' && s.currentTurnId === state.playerId && me.bid == null) {
+    const key = 'bid-' + s.roundNumber + '-' + me.tricksWon;
+    if (currentModalKey !== key) { 
+      currentModalKey = key; 
+      openBidModal(s); 
+    }
+    return;
+  }
+  
+  // PHASE: ROUND END
+  // Show the score summary table explaining who lost lives
+  if (s.phase === 'roundEnd' && s.roundSummary) {
+    const key = 'sum-' + s.roundNumber;
+    if (currentModalKey !== key) { 
+      currentModalKey = key; 
+      openSummaryModal(s); 
+    }
+    return;
+  }
+  
+  // PHASE: GAME OVER
+  // Show the winner celebration screen
+  if (s.phase === 'gameOver') {
+    if (currentModalKey !== 'over') { 
+      currentModalKey = 'over'; 
+      openGameOverModal(s); 
+    }
+    return;
+  }
+  
+  // Close any temporary popups once their phase has passed
+  if (['bid', 'sum'].includes(currentModalKey?.split('-')[0])) { 
+    closeModal(); 
+    currentModalKey = null; 
+  }
+  if (s.phase === 'playing' && currentModalKey && currentModalKey.startsWith('bid')) { 
+    closeModal(); 
+    currentModalKey = null; 
+  }
+}
+
+/**
+ * Displays the Bidding Modal where the player predicts how many tricks they will win.
+ * - In Blind rounds: shows opponents' cards so you can deduce your chances.
+ * - In Normal rounds: shows your own cards.
+ * - Enforces the "Forbidden Bid" rule for the last bidder (total bids cannot equal total tricks).
+ */
 function openBidModal(s) {
   const me = s.players.find((p) => p.isSelf) || {};
   const max = s.cardsThisRound;
@@ -400,7 +682,7 @@ function openBidModal(s) {
 
   if (s.blind) {
     // --- 1-CARD BLIND ROUND ---
-    // You cannot see your own card, so show your opponents' cards instead!
+    // You cannot see your own card, so the popup shows all opponents' visible cards instead!
     const oppCards = s.players
       .filter((p) => !p.isSelf && !p.eliminated)
       .map((p) => {
@@ -423,7 +705,7 @@ function openBidModal(s) {
       </div>`;
   } else if (me.hand && me.hand.length) {
     // --- NORMAL ROUNDS (2 to 5 cards) ---
-    // Show your own cards
+    // Show your own cards inside the popup for easy reference while choosing a bid
     const cards = me.hand.filter(Boolean).map((c) => bigCard(c)).join('');
     cardsHtml = `
       <div class="modal-cards" style="display:flex; justify-content:center; gap:8px; margin:14px 0; flex-wrap:wrap;">
@@ -431,13 +713,15 @@ function openBidModal(s) {
       </div>`;
   }
 
+  // Build the clickable number buttons (from 0 up to max possible tricks this round)
   let cells = '';
   for (let n = 0; n <= max; n++) {
     const bad = forbidden === n;
     cells += `<div class="bid-cell ${bad ? 'forbidden' : ''}" data-bid="${n}">${n}</div>`;
   }
 
-const el = modal(`
+  // Create the modal popup HTML
+  const el = modal(`
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
       <h2 style="margin:0;">Your Bid</h2>
       <div id="bid-modal-timer" style="font-size:14px; font-weight:700; background:rgba(255,255,255,0.12); padding:4px 10px; border-radius:12px; color:#f3f4f6; display:inline-flex; align-items:center; gap:4px;">
@@ -450,13 +734,15 @@ const el = modal(`
     ${forbidden != null ? `<p class="forbidden-note">You're last: you cannot bid ${forbidden}.</p>` : ''}
   `);
 
-  // Show the remaining time immediately on opening
+  // Update the timer displayed inside the bidding popup immediately
   updateTimerUI();
 
+  // Attach click events to each number button
   el.querySelectorAll('.bid-cell').forEach((cell) => {
-    if (cell.classList.contains('forbidden')) return;
+    if (cell.classList.contains('forbidden')) return; // Disable the forbidden bid number
     cell.onclick = () => {
       const value = parseInt(cell.dataset.bid, 10);
+      // Send the chosen bid to the server
       socket.emit('bid', { value }, (res) => {
         if (res.error) { 
           toast(res.error === 'ILLEGAL_BID' ? 'That bid is not allowed' : res.error); 
@@ -471,6 +757,12 @@ const el = modal(`
   });
 }
 
+/**
+ * Opens a popup when the player plays the Ace of Hearts (1♥).
+ * Lets the player declare its power for the trick:
+ * - "WINS": Beats every other card in the trick.
+ * - "LOSES": Loses to every other card in the trick.
+ */
 function openAceModal(card) {
   const el = modal(`
     <h2>Ace of Hearts ♥</h2>
@@ -483,6 +775,10 @@ function openAceModal(card) {
   el.querySelector('.ace-win').onclick = () => sendAce(card, 'win');
   el.querySelector('.ace-lose').onclick = () => sendAce(card, 'lose');
 }
+
+/**
+ * Sends the Ace of Hearts play along with the chosen power ("win" or "lose") to the server.
+ */
 function sendAce(card, choice) {
   socket.emit('playCard', { cardId: card.id, aceChoice: choice }, (res) => {
     closeModal();
@@ -490,7 +786,10 @@ function sendAce(card, choice) {
   });
 }
 
-/* --- Blind Ace Modal --- */
+/**
+ * Opens the choice modal if the player's secret card in the 1-card Blind round
+ * turns out to be the Ace of Hearts.
+ */
 function openBlindAceModal() {
   const el = modal(`
     <h2>🃏 Ace of Hearts ♥!</h2>
@@ -504,6 +803,9 @@ function openBlindAceModal() {
   el.querySelector('.ace-lose').onclick = () => sendBlindAce('lose');
 }
 
+/**
+ * Sends the blind Ace of Hearts choice ("win" or "lose") to the server.
+ */
 function sendBlindAce(choice) {
   socket.emit('playCard', { cardId: '__blind__', aceChoice: choice }, (res) => {
     closeModal();
@@ -511,6 +813,11 @@ function sendBlindAce(choice) {
   });
 }
 
+/**
+ * Displays the Round Summary popup at the end of every round.
+ * Shows a scoreboard table: each player's bid, how many tricks they won,
+ * how many lives they lost, and their remaining lives.
+ */
 function openSummaryModal(s) {
   let rows = '';
   s.roundSummary.forEach((r) => {
@@ -534,6 +841,10 @@ function openSummaryModal(s) {
   haptic('warning');
 }
 
+/**
+ * Displays the Game Over popup when only one player remains alive.
+ * Shows the winner's name, a victory crown, and a "Play Again" button.
+ */
 function openGameOverModal(s) {
   const won = s.winnerId === state.playerId;
   modal(`
@@ -546,10 +857,15 @@ function openGameOverModal(s) {
     </div>
   `);
   haptic('success');
-  if (tg && tg.HapticFeedback && won) tg.HapticFeedback.notificationOccurred('success');
+  if (tg && tg.HapticFeedback && won) {
+    tg.HapticFeedback.notificationOccurred('success');
+  }
 }
 
 /* ------------------------------------------------------------- rules ------ */
+/**
+ * Opens a complete, scrollable explanation popup of the BISCA rules.
+ */
 function showRules() {
   modal(`
     <h2>🃏 How to Play BISCA</h2>
@@ -590,7 +906,7 @@ function showRules() {
       </li>
 
       <li><b>Special 1-Card Round ("Blind"):</b>
-        <br>Look at other players cards!
+        <br>Look at other players' cards!
         <br>Everyone bids 0 or 1 (the last bidder restriction still applies), cards are played, and lives are lost.
       </li>
     </ul>
@@ -599,32 +915,38 @@ function showRules() {
 }
 
 /* ------------------------------------------------------------- timer ------ */
+/**
+ * Calculates remaining seconds until the turn deadline and updates the countdown clock on screen.
+ * If 10 seconds or fewer remain, turns the timer RED to warn the player.
+ */
 function updateTimerUI() {
   const hud = $('#hud-timer');
   const modalTimer = $('#bid-modal-timer');
   const modalTimerSec = modalTimer ? modalTimer.querySelector('.time-sec') : null;
 
+  // If no deadline is active, clear out timer indicators
   if (!state.currentDeadline) {
     if (hud) { hud.textContent = '—'; hud.classList.remove('low'); }
     if (modalTimerSec) { modalTimerSec.textContent = '—'; modalTimer.classList.remove('low'); }
     return;
   }
 
+  // Calculate remaining seconds
   const left = Math.max(0, Math.ceil((state.currentDeadline - Date.now()) / 1000));
-  const isLow = left <= 10;
+  const isLow = left <= 10; // True if 10 seconds or less remain
 
-  // 1. Update background HUD timer
+  // 1. Update the background HUD timer at the top of the game screen
   if (hud) {
     hud.textContent = left;
     hud.classList.toggle('low', isLow);
   }
 
-  // 2. Update popup Bid modal timer
+  // 2. Update the timer inside the Bidding popup (if open)
   if (modalTimer) {
     if (modalTimerSec) modalTimerSec.textContent = `${left}s`;
     modalTimer.classList.toggle('low', isLow);
     if (isLow) {
-      modalTimer.style.color = '#ef4444';
+      modalTimer.style.color = '#ef4444'; // Red color
       modalTimer.style.background = 'rgba(239, 68, 68, 0.2)';
     } else {
       modalTimer.style.color = '#f3f4f6';
@@ -632,30 +954,55 @@ function updateTimerUI() {
     }
   }
 
+  // When timer reaches zero, stop the clock interval
   if (left <= 0) {
     clearInterval(state.timerHandle);
   }
 }
 
+/**
+ * Starts or resets the turn countdown clock with a new target deadline timestamp.
+ */
 function startTimer(deadline) {
   state.currentDeadline = deadline;
-  clearInterval(state.timerHandle);
-  updateTimerUI();
+  clearInterval(state.timerHandle); // Stop any previous timer
+  updateTimerUI();                  // Run immediately once
   if (deadline) {
+    // Run updateTimerUI every 1000 milliseconds (1 second)
     state.timerHandle = setInterval(updateTimerUI, 1000);
   }
 }
 
 /* ------------------------------------------------------------- utils ------ */
+/**
+ * Security helper: escapes dangerous characters (like <, >, &) in player names
+ * to prevent malicious code injection (XSS attacks) from breaking the page.
+ */
 function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return String(str).replace(/[&<>"']/g, (c) => ({ 
+    '&': '&amp;', 
+    '<': '&lt;', 
+    '>': '&gt;', 
+    '"': '&quot;', 
+    "'": '&#39;' 
+  }[c]));
 }
 
-/* Telegram BackButton integration */
+/* Telegram Native Back-Button Integration */
+// Connects Telegram's native top-left back button so that tapping it:
+// 1. Closes any open modal/popup first, OR
+// 2. Navigates back to the home screen (unless mid-game).
 if (tg && tg.BackButton) {
   tg.BackButton.onClick(() => {
-    if ($('#modal-root').innerHTML) { closeModal(); return; }
-    if ($('#screen-game').classList.contains('active')) return; // no leaving mid-game via back
+    // If a popup is open, close it
+    if ($('#modal-root').innerHTML) { 
+      closeModal(); 
+      return; 
+    }
+    // Prevent accidentally exiting during an active match
+    if ($('#screen-game').classList.contains('active')) return;
+    
+    // Otherwise return to the home screen
     showScreen('screen-home');
     tg.BackButton.hide();
   });
