@@ -61,6 +61,7 @@ const state = {
   playerId: null,        // Unique ID assigned to this player by the server
   name: 'Guest',         // Player's display name
   roomId: null,          // Code of the room/match currently joined (e.g. "ABCD")
+  pendingJoin: null,
   isHost: false,         // True if this player created the room (can start the game)
   last: null,            // Holds the most recent game snapshot sent from the server
   botUsername: '',       // The Telegram username of the game bot (used to make shareable links)
@@ -214,9 +215,14 @@ function startParam() {
  * Automatically joins a game room if an invite code was found in the link.
  */
 function maybeAutoJoin() {
-  const room = startParam();
-  if (room) doJoin(room);
+  // Prefer a code captured at startup; fall back to reading the link now
+  const room = state.pendingJoin || startParam();
+  if (room) {
+    state.pendingJoin = room;   // keep it in case the first attempt is too early
+    doJoin(room);
+  }
 }
+
 
 /* --------------------------------------------------------- config fetch --- */
 // Asks the server for general app configuration settings (like the Telegram Bot's username).
@@ -293,10 +299,24 @@ $('#btn-create-confirm').onclick = () => {
 /**
  * Sends a request to the server to join an existing game room using its code.
  */
-function doJoin(roomId) {
+function doJoin(roomId, attempt = 0) {
+  // If the socket isn't connected yet, wait and try again shortly
+  if (!socket.connected || !state.playerId) {
+    if (attempt < 10) {
+      return setTimeout(() => doJoin(roomId, attempt + 1), 400);
+    }
+  }
+
   socket.emit('joinRoom', { roomId }, (res) => {
-    if (res.error) return toast(joinError(res.error));
+    if (res && res.error) {
+      // Room may not be registered on the server for a brief moment — retry a few times
+      if (res.error === 'ROOM_NOT_FOUND' && attempt < 5) {
+        return setTimeout(() => doJoin(roomId, attempt + 1), 600);
+      }
+      return toast(joinError(res.error));
+    }
     state.roomId = res.roomId;
+    state.pendingJoin = null;   // success → stop retrying
     haptic('success');
   });
 }
@@ -1123,3 +1143,9 @@ if (tg && tg.BackButton) {
     tg.BackButton.hide();
   });
 }
+
+/* Capture invite code as early as possible */
+(function captureInviteEarly() {
+  const room = startParam();
+  if (room) state.pendingJoin = room;
+})();
