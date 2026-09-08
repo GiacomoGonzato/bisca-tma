@@ -470,10 +470,24 @@ function renderOpponents(s, me) {
       <div class="avatar">${initials(p.name)}</div>
       <div class="opp-name">${escapeHtml(p.name)}${p.isHost ? ' 👑' : ''}</div>
       <div class="opp-lives">${hearts(p.lives)}</div>
-      <div class="opp-bid">${p.bid == null ? '' : `Bid ${p.bid} · Won ${p.tricksWon}`}</div>
+      ${oppBidBadge(p)}
       <div class="opp-cards">${cardsHtml}</div>`;
     wrap.appendChild(el);
   });
+}
+
+/**
+ * Builds the compact colored Bid/Won badge for an opponent.
+ * Green = on target (bid === won), Orange = off target, empty = not bid yet.
+ */
+function oppBidBadge(p) {
+  if (p.bid == null) return '<div class="opp-bid"></div>'; // not bid yet → nothing
+  const won = p.tricksWon || 0;
+  const met = won === p.bid;
+  const cls = met ? 'met' : 'missing';
+  return `<div class="opp-bid opp-badge ${cls}">
+    🎯${p.bid}<span class="opp-sep">·</span>🏆${won}
+  </div>`;
 }
 
 /**
