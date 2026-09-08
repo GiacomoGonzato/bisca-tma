@@ -230,6 +230,39 @@ html, body {
   padding: 8px 12px; border-radius: 14px; margin-bottom: 8px;
 }
 .my-name { font-weight: 800; }
+/* Bid vs Won status badge */
+.bid-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 999px;
+  font-size: 14px; font-weight: 700;
+  border: 1px solid transparent;
+  transition: background .25s ease, color .25s ease, border-color .25s ease;
+}
+.bid-badge b        { font-size: 15px; }
+.bid-badge .bid-sep { opacity: .4; margin: 0 2px; }
+.bid-hint {
+  font-size: 11px; font-weight: 600; opacity: .9;
+  padding-left: 6px; margin-left: 4px;
+  border-left: 1px solid currentColor;
+}
+/* ✅ goal reached: bid === won */
+.bid-badge.met {
+  background: rgba(36,209,154,.15);
+  border-color: rgba(36,209,154,.55);
+  color: var(--accent);
+}
+/* ⚠️ goal NOT reached: bid ≠ won */
+.bid-badge.missing {
+  background: rgba(255,143,92,.15);
+  border-color: rgba(255,143,92,.55);
+  color: var(--diamond);
+}
+/* ⏳ not bid yet */
+.bid-badge.pending {
+  background: var(--glass);
+  border-color: var(--glass-brd);
+  color: var(--muted);
+}
 .lives { letter-spacing: 1px; }
 .hand {
   display: flex; justify-content: center; gap: -18px; padding: 4px 0 2px; min-height: 96px;
