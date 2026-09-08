@@ -515,7 +515,7 @@ function renderTrick(s) {
         if (state.last) {
           renderGame(state.last);
         }
-      }, 1500);
+      }, 2000);
     }
 
     // Show cards if we are still within the 1.5s window
