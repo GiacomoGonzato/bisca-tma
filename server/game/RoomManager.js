@@ -277,27 +277,47 @@ class RoomManager {
     this.playCard(room.id, player.id, card.id, ace);
   }
 
-  _resolveTrick(room) {
-    const active = this._activePlayers(room);
-    const winIdx = Engine.resolveTrick(room.currentTrick);
-    const winnerId = room.currentTrick[winIdx].playerId;
-    room.tricksWon[winnerId] = (room.tricksWon[winnerId] || 0) + 1;
-    room.lastTrick = { plays: room.currentTrick.slice(), winnerId };
-    room.log.push(`${this._name(room, winnerId)} wins the trick`);
-
-    // Winner leads next trick.
-    room.turnIndex = active.findIndex((p) => p.id === winnerId);
-    room.currentTrick = [];
-
-    const cardsLeft = active[0].hand.length;
-    if (cardsLeft === 0) {
-      this._endRound(room);
-    } else {
-      // brief pause so clients can show the completed trick
-      this._emit(room.id);
-      this._startTurnTimer(room, () => this._autoPlay(room), 2500);
-    }
+_resolveTrick(room) {
+  const active = this._activePlayers(room);
+  const winIdx = Engine.resolveTrick(room.currentTrick);
+  const winnerId = room.currentTrick[winIdx].playerId;
+  room.tricksWon[winnerId] =
+    (room.tricksWon[winnerId] || 0) + 1;
+  // Save the completed trick so clients can display it.
+  room.lastTrick = {
+    plays: room.currentTrick.slice(),
+    winnerId,
+  };
+  room.log.push(
+    `${this._name(room, winnerId)} wins the trick`
+  );
+  // The trick winner leads the next trick.
+  room.turnIndex = active.findIndex(
+    (player) => player.id === winnerId
+  );
+  // All cards from the completed trick are now stored in lastTrick.
+  room.currentTrick = [];
+  const cardsLeft = active[0].hand.length;
+  if (cardsLeft === 0) {
+    this._endRound(room);
+    return;
   }
+  // Publish lastTrick so clients can display it.
+  this._emit(room.id);
+  // Wait 2.5 seconds only for visual presentation.
+  this._timeout(room, () => {
+    // Prevent an obsolete callback from changing another phase.
+    if (room.phase !== 'playing') return;
+    // Start the normal 30-second action timer.
+    this._startTurnTimer(
+      room,
+      () => this._autoPlay(room),
+      TURN_MS
+    );
+    // Publish the new turn deadline.
+    this._emit(room.id);
+  }, 2500);
+}
 
   // ----------------------------------------------------------- round end ----
 
