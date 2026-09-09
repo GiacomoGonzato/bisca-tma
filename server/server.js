@@ -90,22 +90,38 @@ io.on('connection', (socket) => {
   // ---- identify: derive a stable playerId from Telegram or a client uuid ---
   let identity = { id: null, name: 'Guest' };
 
-  socket.on('auth', (payload = {}, cb = () => {}) => {
-    const tgUser = verifyInitData(payload.initData);
-    if (tgUser) {
-      identity = {
-        id: `tg_${tgUser.id}`,
-        name: [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || tgUser.username || 'Player',
-      };
-    } else {
-      // Fallback for browser testing.
-      identity = {
-        id: payload.clientId || `web_${socket.id}`,
-        name: payload.name || 'Guest',
-      };
+socket.on('auth', (payload = {}, cb = () => {}) => {
+  const tgUser = verifyInitData(payload.initData);
+  const customName = (payload.name || '').trim();
+
+  if (tgUser) {
+    identity = {
+      id: `tg_${tgUser.id}`,
+      // Use the player's chosen name if they sent one, else the Telegram name.
+      name: (customName.length >= 2
+        ? customName
+        : [tgUser.first_name, tgUser.last_name].filter(Boolean).join(' ') || tgUser.username || 'Player'),
+    };
+  } else {
+    identity = {
+      id: payload.clientId || `web_${socket.id}`,
+      name: customName.length >= 2 ? customName : 'Guest',
+    };
+  }
+
+  // If already in a room, update the stored name and refresh everyone's screen.
+  const s = sessions.get(socket.id);
+  if (s && rooms.getRoom(s.roomId)) {
+    const room = rooms.getRoom(s.roomId);
+    const player = room.players.find((p) => p.id === identity.id);
+    if (player) {
+      player.name = identity.name;   // overwrite the old name
+      rooms.onUpdate(s.roomId);       // broadcast so opponents see the new name
     }
-    cb({ ok: true, playerId: identity.id, name: identity.name });
-  });
+  }
+
+  cb({ ok: true, playerId: identity.id, name: identity.name });
+});
 
   // ---- create a room -------------------------------------------------------
   socket.on('createRoom', ({ maxPlayers } = {}, cb = () => {}) => {
