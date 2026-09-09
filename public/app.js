@@ -988,7 +988,7 @@ function openSummaryModal(s) {
       <thead>
         <tr>
           <th>#️⃣</th>
-          <th style="text-align:left">👤</th>
+          <th>👤</th>
           <th>💀</th>
           <th>❤️</th>
         </tr>
