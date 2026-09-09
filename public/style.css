@@ -336,6 +336,32 @@ html, body {
 .summary-table .neg { color: var(--danger); font-weight: 700; }
 .summary-table .ok { color: var(--accent); font-weight: 700; }
 .row-out td { opacity: .45; text-decoration: line-through; }
+/* summary — ranking + self highlight */
+.summary-table td { vertical-align: middle; }
+.sum-rank  { width: 30px; font-size: 16px; }
+.sum-name  { text-align: left; font-weight: 600; }
+
+/* highlight the current player's row */
+.row-self td { background: rgba(124, 92, 255, .16); }
+.row-self td:first-child { box-shadow: inset 3px 0 0 var(--primary); }
+.you-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 6px;
+  font-size: 10px; font-weight: 800; letter-spacing: .5px;
+  border-radius: 999px; color: #0b0f1a;
+  background: linear-gradient(135deg, var(--accent), #12a37a);
+}
+
+/* bid vs won chips */
+.sum-target .chip {
+  display: inline-block; padding: 2px 7px; margin: 0 1px;
+  font-size: 12px; font-weight: 700; border-radius: 999px;
+  background: rgba(255,255,255,.08); border: 1px solid var(--glass-brd);
+}
+.chip-hit  { color: var(--accent); border-color: rgba(36,209,154,.5); }
+.chip-miss { color: var(--danger); border-color: rgba(255,92,120,.5); }
+
+.sum-delta { font-weight: 800; white-space: nowrap; }
+.sum-lives { white-space: nowrap; }
 
 /* podium / game over */
 .podium { text-align: center; }
