@@ -510,10 +510,6 @@ function renderGame(s) {
     bidEl.innerHTML = `🎯 <b>–</b><span class="bid-sep">·</span>🏆 <b>${wonVal}</b>`;
   } else {
     const met  = wonVal === bidVal;
-    const diff = bidVal - wonVal;
-    const hint = met ? '✓ on target'
-               : diff > 0 ? `+${diff} to go`
-               : `${Math.abs(diff)} over`;
     bidEl.className = 'bid-badge ' + (met ? 'met' : 'missing');
     bidEl.innerHTML =
       `🎯 <b>${bidVal}</b><span class="bid-sep">·</span>🏆 <b>${wonVal}</b>`;
