@@ -787,8 +787,9 @@ function modal(html) {
 /**
  * Closes and removes any currently open popup window.
  */
-function closeModal() { 
-  $('#modal-root').innerHTML = ''; 
+function closeModal() {   
+  $('#modal-root').innerHTML = '';   
+  currentModalKey = null;   // allow required modals (bid) to reopen
 }
 
 let currentModalKey = null; // Remembers which modal is currently open so it doesn't re-open repeatedly
