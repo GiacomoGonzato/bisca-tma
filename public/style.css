@@ -351,15 +351,6 @@ html, body {
   background: linear-gradient(135deg, var(--accent), #12a37a);
 }
 
-/* bid vs won chips */
-.sum-target .chip {
-  display: inline-block; padding: 2px 7px; margin: 0 1px;
-  font-size: 12px; font-weight: 700; border-radius: 999px;
-  background: rgba(255,255,255,.08); border: 1px solid var(--glass-brd);
-}
-.chip-hit  { color: var(--accent); border-color: rgba(36,209,154,.5); }
-.chip-miss { color: var(--danger); border-color: rgba(255,92,120,.5); }
-
 .sum-delta { font-weight: 800; white-space: nowrap; }
 .sum-lives { white-space: nowrap; }
 
