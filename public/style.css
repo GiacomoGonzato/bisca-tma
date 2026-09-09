@@ -107,6 +107,7 @@ html, body {
   letter-spacing: 4px; text-align: center; text-transform: uppercase; width: 100%;
 }
 .input:focus { outline: none; border-color: var(--primary); }
+.input-name { text-transform: none; letter-spacing: 1px; text-align: left; font-size: 16px; }
 .join-row { display: flex; gap: 10px; }
 .join-row .input { flex: 1; }
 
