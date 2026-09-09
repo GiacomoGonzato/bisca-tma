@@ -279,6 +279,13 @@ $('#btn-name-confirm').onclick = () => {
   if (socket.connected) authenticate();   // now register with the chosen name
 };
 
+// HOME SCREEN: reopen the name screen so the user can edit their name.
+$('#btn-change-name').onclick = () => {
+  haptic();
+  $('#input-name').value = state.name || defaultName();
+  showScreen('screen-name');
+};
+
 // HOME SCREEN: When the player taps "Join Game", read the text box and join the room.
 $('#btn-join').onclick = () => {
   const code = $('#input-room').value.trim().toUpperCase();
