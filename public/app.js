@@ -352,6 +352,7 @@ function doJoin(roomId, attempt = 0) {
     if (attempt < 10) {
       return setTimeout(() => doJoin(roomId, attempt + 1), 400);
     }
+    return toast('Connection problem — please retry');
   }
 
   socket.emit('joinRoom', { roomId }, (res) => {
