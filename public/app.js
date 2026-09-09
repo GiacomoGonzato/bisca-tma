@@ -957,8 +957,7 @@ function openSummaryModal(s) {
   const me = s.players.find((p) => p.isSelf) || {};
   const myName = me.name;
 
-  // Rank players: most lives first; eliminated sink to the bottom,
-  // ties broken by fewest lives lost this round.
+  // Rank: most lives first; eliminated sink down; ties → fewest lost.
   const ranked = s.roundSummary
     .slice()
     .sort((a, b) => (b.lives - a.lives) || (a.lost - b.lost));
@@ -971,17 +970,13 @@ function openSummaryModal(s) {
     const isSelf = myName != null && r.name === myName;
     const safe   = r.lost === 0;
     const rank   = out ? '💀' : (medals[i] || `${i + 1}`);
-    const delta    = safe ? '✓ safe' : `−${r.lost} ❤️`;
+    const delta    = safe ? '✓ safe' : '💀'.repeat(r.lost);
     const deltaCls = safe ? 'ok' : 'neg';
 
     rows += `
       <tr class="sum-row ${out ? 'row-out' : ''} ${isSelf ? 'row-self' : ''}">
         <td class="sum-rank">${rank}</td>
         <td class="sum-name">${escapeHtml(r.name)}${isSelf ? '<span class="you-tag">YOU</span>' : ''}</td>
-        <td class="sum-target">
-          <span class="chip">🎯 ${r.bid}</span>
-          <span class="chip ${safe ? 'chip-hit' : 'chip-miss'}">🏆 ${r.won}</span>
-        </td>
         <td class="sum-delta ${deltaCls}">${delta}</td>
         <td class="sum-lives">${hearts(r.lives)}</td>
       </tr>`;
@@ -989,13 +984,11 @@ function openSummaryModal(s) {
 
   modal(`
     <h2>Round ${s.roundNumber} Results</h2>
-    <p class="sub">🎯 Bid = 🏆 Won → <b>safe</b>. Else −1 ❤️ per trick off.</p>
     <table class="summary-table">
       <thead>
         <tr>
           <th>#</th>
           <th style="text-align:left">Player</th>
-          <th>Bid / Won</th>
           <th>Δ</th>
           <th>Lives</th>
         </tr>
