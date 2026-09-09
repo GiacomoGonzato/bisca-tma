@@ -954,21 +954,52 @@ function sendBlindAce(choice) {
  * how many lives they lost, and their remaining lives.
  */
 function openSummaryModal(s) {
+  const me = s.players.find((p) => p.isSelf) || {};
+  const myName = me.name;
+
+  // Rank players: most lives first; eliminated sink to the bottom,
+  // ties broken by fewest lives lost this round.
+  const ranked = s.roundSummary
+    .slice()
+    .sort((a, b) => (b.lives - a.lives) || (a.lost - b.lost));
+
+  const medals = ['🥇', '🥈', '🥉'];
+
   let rows = '';
-  s.roundSummary.forEach((r) => {
-    const out = r.lives <= 0;
-    const cls = r.lost === 0 ? 'ok' : 'neg';
-    rows += `<tr class="${out ? 'row-out' : ''}">
-      <td style="text-align:left">${escapeHtml(r.name)}</td>
-      <td>${r.bid}</td><td>${r.won}</td>
-      <td class="${cls}">${r.lost === 0 ? '✓' : '-' + r.lost}</td>
-      <td>${hearts(r.lives)}</td></tr>`;
+  ranked.forEach((r, i) => {
+    const out    = r.lives <= 0;
+    const isSelf = myName != null && r.name === myName;
+    const safe   = r.lost === 0;
+    const rank   = out ? '💀' : (medals[i] || `${i + 1}`);
+    const delta    = safe ? '✓ safe' : `−${r.lost} ❤️`;
+    const deltaCls = safe ? 'ok' : 'neg';
+
+    rows += `
+      <tr class="sum-row ${out ? 'row-out' : ''} ${isSelf ? 'row-self' : ''}">
+        <td class="sum-rank">${rank}</td>
+        <td class="sum-name">${escapeHtml(r.name)}${isSelf ? '<span class="you-tag">YOU</span>' : ''}</td>
+        <td class="sum-target">
+          <span class="chip">🎯 ${r.bid}</span>
+          <span class="chip ${safe ? 'chip-hit' : 'chip-miss'}">🏆 ${r.won}</span>
+        </td>
+        <td class="sum-delta ${deltaCls}">${delta}</td>
+        <td class="sum-lives">${hearts(r.lives)}</td>
+      </tr>`;
   });
+
   modal(`
     <h2>Round ${s.roundNumber} Results</h2>
-    <p class="sub">Exact bid = safe. Otherwise −1 life per trick off.</p>
+    <p class="sub">🎯 Bid = 🏆 Won → <b>safe</b>. Else −1 ❤️ per trick off.</p>
     <table class="summary-table">
-      <thead><tr><th style="text-align:left">Player</th><th>Bid</th><th>Won</th><th>Δ Lives</th><th>Lives</th></tr></thead>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th style="text-align:left">Player</th>
+          <th>Bid / Won</th>
+          <th>Δ</th>
+          <th>Lives</th>
+        </tr>
+      </thead>
       <tbody>${rows}</tbody>
     </table>
     <p class="sub">Next round starting…</p>
