@@ -289,7 +289,7 @@ $('#btn-change-name').onclick = () => {
 // HOME SCREEN: When the player taps "Join Game", read the text box and join the room.
 $('#btn-join').onclick = () => {
   const code = $('#input-room').value.trim().toUpperCase();
-  if (code.length < 4) return toast('Enter a valid room code');
+  if (code.length !== 5) return toast('Room codes are 5 characters');
   doJoin(code);
 };
 
