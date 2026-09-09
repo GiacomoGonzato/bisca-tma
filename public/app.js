@@ -469,8 +469,7 @@ function renderGame(s) {
                : `${Math.abs(diff)} over`;
     bidEl.className = 'bid-badge ' + (met ? 'met' : 'missing');
     bidEl.innerHTML =
-      `🎯 <b>${bidVal}</b><span class="bid-sep">·</span>🏆 <b>${wonVal}</b>` +
-      `<span class="bid-hint">${hint}</span>`;
+      `🎯 <b>${bidVal}</b><span class="bid-sep">·</span>🏆 <b>${wonVal}</b>`;
   }
 
   // 6. Draw my playable cards at the bottom of the screen
