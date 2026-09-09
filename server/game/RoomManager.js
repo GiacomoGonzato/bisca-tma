@@ -398,13 +398,17 @@ _resolveTrick(room) {
     room._reconnect[playerId] = setTimeout(() => {
       const p = room.players.find((x) => x.id === playerId);
       if (p && !p.connected && !p.eliminated) {
-        // Treat as forfeit: eliminate to keep the game flowing.
-        p.eliminated = true;
+        // Forfeit WITHOUT shrinking the active set mid-round.
+        // lives=0 → the round-end logic eliminates them safely.
+        p.forfeit = true;
         p.lives = 0;
         room.log.push(`${p.name} left and forfeited`);
-        // If it was their turn, auto-resolve.
+        // If it's currently their turn, keep the flow moving.
         if (room.phase === 'betting') this._autoBid(room);
         else if (room.phase === 'playing') this._autoPlay(room);
+        else if (room.phase === 'lobby') {
+          room.players = room.players.filter((x) => x.id !== playerId);
+        }
         this._emit(room.id);
       }
     }, RECONNECT_GRACE_MS);
