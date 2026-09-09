@@ -92,7 +92,7 @@ function cardStrength(card, aceChoice) {
   if (isAceOfHearts(card)) {
     if (aceChoice === 'win') return Number.POSITIVE_INFINITY;
     if (aceChoice === 'lose') return Number.NEGATIVE_INFINITY;
-    // Fallback (should not happen): treat as normal hearts-1.
+    return Number.POSITIVE_INFINITY; // defensive: undeclared Ace♥ = strongest
   }
   return SUIT_RANK[card.suit] * 100 + card.value;
 }
