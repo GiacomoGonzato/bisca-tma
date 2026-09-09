@@ -987,10 +987,10 @@ function openSummaryModal(s) {
     <table class="summary-table">
       <thead>
         <tr>
-          <th>#</th>
-          <th style="text-align:left">Player</th>
-          <th>Δ</th>
-          <th>Lives</th>
+          <th>#️⃣</th>
+          <th style="text-align:left">👤</th>
+          <th>💀</th>
+          <th>❤️</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
