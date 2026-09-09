@@ -619,7 +619,7 @@ function renderTrick(s) {
       state.isTrickResolving = true;
       state.hideLastTrick = false;
 
-      // Start the 1.5-second (1500 ms) timer
+      // Start the 1.5-second (2500 ms) timer
       clearTimeout(state.trickTimer);
       state.trickTimer = setTimeout(() => {
         state.isTrickResolving = false;
@@ -629,7 +629,7 @@ function renderTrick(s) {
         if (state.last) {
           renderGame(state.last);
         }
-      }, 2000);
+      }, 2500);
     }
 
     // Show cards if we are still within the 1.5s window
