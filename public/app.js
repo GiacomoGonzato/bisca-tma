@@ -60,6 +60,7 @@ function compareCardsDesc(a, b) {
 const state = {
   playerId: null,        // Unique ID assigned to this player by the server
   name: 'Guest',         // Player's display name
+  nameConfirmed: false,  // True once the player has set/confirmed their name
   roomId: null,          // Code of the room/match currently joined (e.g. "ABCD")
   pendingJoin: null,
   isHost: false,         // True if this player created the room (can start the game)
@@ -158,7 +159,7 @@ function clientId() {
 const socket = io({ transports: ['websocket', 'polling'] });
 
 // When the device connects (or reconnects) to the server, send our login information.
-socket.on('connect', () => authenticate());
+socket.on('connect', () => { if (state.nameConfirmed) authenticate(); });
 
 // Whenever the server broadcasts an updated game state, re-draw the screen to reflect it.
 socket.on('state', (s) => renderGame(s));
@@ -173,7 +174,7 @@ socket.on('disconnect', () => toast('Reconnecting…'));
  */
 function authenticate() {
   const payload = tg
-    ? { initData: tg.initData, name: tgName() }
+    ? { initData: tg.initData, name: state.name }
     : { clientId: clientId(), name: state.name };
 
   // Send the "auth" message to the server
@@ -197,6 +198,33 @@ function tgName() {
   const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
   if (!u) return 'Guest';
   return [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Player';
+}
+
+/** Random fallback name: "Guest-123" (always 3 digits). */
+function randomGuestName() {
+  return 'Guest-' + Math.floor(100 + Math.random() * 900);
+}
+
+/** Resolve the pre-filled name: saved → Telegram → Guest-XXX. */
+function defaultName() {
+  const saved = localStorage.getItem('bisca_name');
+  if (saved) return saved;
+  const u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+  const tgn = u ? ([u.first_name, u.last_name].filter(Boolean).join(' ') || u.username) : null;
+  return tgn || randomGuestName();
+}
+
+/** First-run gate: returning players skip; new players pick a name. */
+function initNameFlow() {
+  const saved = localStorage.getItem('bisca_name');
+  if (saved) {
+    state.name = saved;
+    state.nameConfirmed = true;
+    if (socket.connected) authenticate();   // connect may have already fired
+    return;
+  }
+  $('#input-name').value = defaultName();
+  showScreen('screen-name');
 }
 
 /**
@@ -237,6 +265,18 @@ $('#btn-create').onclick = () => {
   haptic(); 
   buildCountGrid(); 
   showScreen('screen-create'); 
+};
+
+$('#btn-name-confirm').onclick = () => {
+  const val = $('#input-name').value.trim();
+  if (val.length < 2) return toast('Enter a name (min 2 characters)');
+  state.name = val;
+  localStorage.setItem('bisca_name', val);
+  state.nameConfirmed = true;
+  $('#my-name').textContent = val;
+  haptic('success');
+  showScreen('screen-home');
+  if (socket.connected) authenticate();   // now register with the chosen name
 };
 
 // HOME SCREEN: When the player taps "Join Game", read the text box and join the room.
@@ -1172,3 +1212,6 @@ if (tg && tg.BackButton) {
   const room = startParam();
   if (room) state.pendingJoin = room;
 })();
+
+/* Ask for a username on first visit (pre-filled, editable). */
+initNameFlow();
